@@ -1,7 +1,7 @@
 // Service worker: leidžia įdiegti svetainę kaip programėlę ir naudotis ja be ryšio.
 // Pirmiausia tinklas (naujausios akcijos ir dizainas), be ryšio – paskutinė išsaugota kopija (taip pat data.json).
 // Keliai santykiniai: svetainė gali būti ne domeno šaknyje (pvz. vardas.github.io/akcijos/).
-const CACHE = 'akcijos-v2';
+const CACHE = 'akcijos-v3';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'data.json'];
 
 self.addEventListener('install', e => {
