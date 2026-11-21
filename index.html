@@ -322,8 +322,8 @@
   .wi { flex:1; min-width:0; }
   .wn { font-size:14px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
         overflow-wrap:anywhere; }
-  .wsub { display:flex; align-items:center; gap:6px; margin-top:2px; color:var(--muted); font-size:12px; min-width:0; }
-  .wsub span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wsub { display:flex; align-items:center; flex-wrap:wrap; gap:2px 6px; margin-top:2px; color:var(--muted); font-size:12px; min-width:0; }
+  .wsub span:first-child { overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow-wrap:anywhere; }
   .wpr { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
   .wp { font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.02em; line-height:1; }
   .wpr .badge { font-size:11px; padding:1px 5px; }
@@ -392,7 +392,7 @@
     <div class="searchrow">
       <div class="search" id="searchBox">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="q" type="search" inputmode="search" enterkeyhint="search" placeholder="Ieškoti prekės…" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input id="q" type="search" aria-label="Ieškoti prekės" inputmode="search" enterkeyhint="search" placeholder="Ieškoti prekės…" autocomplete="off" autocapitalize="off" spellcheck="false">
         <button id="clear" type="button" aria-label="Išvalyti">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
@@ -443,8 +443,8 @@
     <h2>Akcijos</h2>
     <p id="loginMsg"></p>
     <div id="loginFields">
-      <input id="lname" name="username" autocomplete="username" placeholder="Vardas" required autocapitalize="words" spellcheck="false">
-      <input id="lpass" name="password" type="password" autocomplete="current-password" placeholder="Slaptažodis" required>
+      <input id="lname" name="username" aria-label="Vardas" autocomplete="username" placeholder="Vardas" required autocapitalize="words" spellcheck="false">
+      <input id="lpass" name="password" aria-label="Slaptažodis" type="password" autocomplete="current-password" placeholder="Slaptažodis" required>
       <button class="primary" id="lbtn">Prisijungti</button>
       <div id="lerr" class="lerr" aria-live="polite"></div>
     </div>
@@ -786,8 +786,10 @@ function listCard(r) {
   return box;
 }
 
-const sumP = list => list.reduce((a, b) => a + (b.it.p ?? 0), 0);
-const sumSave = list => list.reduce((a, b) => a + (b.it.o > b.it.p ? b.it.o - b.it.p : 0), 0);
+// pasibaigusios akcijos kaina nebegalioja – į krepšelio sumas neįskaičiuojama (prekė lieka su žyma „baigėsi …“)
+const gone = b => !!(b.it.t && b.it.t < today());
+const sumP = list => list.reduce((a, b) => a + (gone(b) ? 0 : b.it.p ?? 0), 0);
+const sumSave = list => list.reduce((a, b) => a + (!gone(b) && b.it.o > b.it.p ? b.it.o - b.it.p : 0), 0);
 const ICON = {
   add: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 6.5"/><circle cx="9.5" cy="20.5" r="1.2"/><circle cx="16.5" cy="20.5" r="1.2"/><path d="M13.5 6.5v6M10.5 9.5h6" stroke-width="2.3"/></svg>',
   inb: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 6.5"/><circle cx="9.5" cy="20.5" r="1.2"/><circle cx="16.5" cy="20.5" r="1.2"/><path d="m10.5 9.8 2.2 2.2 4-4.3" stroke-width="2.4"/></svg>',
@@ -831,7 +833,7 @@ function renderBasket() {
     return;
   }
   const n = BASKET.length, done = BASKET.filter(b => b.done), left = BASKET.filter(b => !b.done);
-  const noPrice = BASKET.filter(b => b.it.p == null).length;
+  const noPrice = BASKET.filter(b => b.it.p == null).length, nGone = left.filter(gone).length;
 
   const sum = el('div', 'sum');
   const row = el('div', 'row');
@@ -843,7 +845,8 @@ function renderBasket() {
   row.append(l, r);
   const bar = el('div', 'bar'); const fill = el('i'); fill.style.width = (done.length / n * 100) + '%'; bar.append(fill);
   const wn = el('span', 'wake', ' · ☀ ekranas neužges'); wn.id = 'wakeNote'; wn.hidden = !wakeLock;
-  const st = el('div', 'lbl', `${done.length} iš ${n} nupirkta` + (noPrice ? ` · ${noPrice} be kainos (neįskaičiuota)` : ''));
+  const st = el('div', 'lbl', `${done.length} iš ${n} nupirkta` + (noPrice ? ` · ${noPrice} be kainos (neįskaičiuota)` : '')
+    + (nGone ? ` · ${nGone} ${plural(nGone, 'akcija pasibaigė', 'akcijos pasibaigė', 'akcijų pasibaigė')} (neįskaičiuota)` : ''));
   st.append(wn);
   sum.append(row, bar, st);
   v.append(sum);
