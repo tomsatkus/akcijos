@@ -16,18 +16,18 @@
 <meta name="robots" content="noindex">
 <style>
   :root {
-    --bg:#f4f5f7; --surface:#ffffff; --surface-2:#eef0f3; --text:#14171c; --muted:#69717d; --line:#e3e6ea;
+    --bg:#f4f5f7; --surface:#ffffff; --surface-2:#eef0f3; --text:#14171c; --muted:#5d6470; --line:#e3e6ea;
     --accent:#e0352b; --accent-soft:#fde9e7; --good:#0f9d58; --warn:#b45309; --warn-soft:#fff4e0;
     --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.06);
     --radius:18px;
-    --c-maxima:#d7262e; --c-iki:#e5007e; --c-lidl:#0b4ea2; --c-rimi:#c4122f; --c-norfa:#e8a000;
+    --c-maxima:#d7262e; --c-iki:#e5007e; --c-lidl:#0b4ea2; --c-rimi:#9e1b45; --c-norfa:#e8a000;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg:#0f1115; --surface:#181b21; --surface-2:#22262e; --text:#eef1f5; --muted:#98a1ae; --line:#2a2f38;
       --accent:#ff5b4f; --accent-soft:#3a1d1b; --good:#34c37a; --warn:#f0a43a; --warn-soft:#33260f;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
-      --c-lidl:#4d8be0; --c-rimi:#ff4d68;
+      --c-lidl:#4d8be0; --c-rimi:#d65a7c;
     }
   }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -44,6 +44,7 @@
           background:linear-gradient(135deg, #ff6a4d, #e0352b); display:grid; place-items:center;
           color:#fff; font-weight:800; font-size:16px; box-shadow:0 4px 12px rgba(224,53,43,.35); }
   .brand .sub { margin-left:auto; color:var(--muted); font-size:13px; }
+  .brand .sub.offline { color:var(--warn); font-weight:700; }
   .brand h1 { font-size:22px; letter-spacing:-.02em; margin:0; font-weight:800; }
   header {
     position:sticky; top:0; z-index:10; padding:10px 16px 8px;
@@ -202,6 +203,7 @@
   .pg.nav:first-child { margin-right:6px; } .pg.nav:last-child { margin-left:6px; }
   .pg:disabled { opacity:.35; cursor:default; }
   .pager .gap { width:22px; text-align:center; color:var(--muted); }
+  .pager .chip.more { height:46px; padding:0 22px; font-size:15px; box-shadow:var(--shadow); }
   .empty > .chip { margin-top:4px; }
   .skel { height:118px; border-radius:var(--radius); background:linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
           background-size:200% 100%; animation:sh 1.1s linear infinite; }
@@ -236,6 +238,7 @@
           display:grid; place-items:center; border:1px solid var(--line); background:var(--surface); color:var(--text);
           transition:background .15s, color .15s, border-color .15s; }
   .slot:active { transform:scale(.92); }
+  .slot::after { content:""; position:absolute; inset:-8px; border-radius:50%; }   /* paspaudžiamas plotas ~54 px */
   .slot.on { background:var(--text); border-color:var(--text); color:var(--bg); }
   @media (prefers-color-scheme: dark) {
     .slot.on { background:color-mix(in srgb, var(--text) 20%, var(--surface)); border-color:color-mix(in srgb, var(--text) 35%, var(--surface));
@@ -285,6 +288,7 @@
   .grp .gsum { margin-left:auto; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
   .blist { display:grid; gap:8px; }
   @media (min-width:700px) { .blist { grid-template-columns:1fr 1fr; } }
+  .sum .wake { color:var(--good); font-weight:600; }
   .bactions { display:flex; gap:8px; justify-content:center; margin:22px 0 0; flex-wrap:wrap; }
 
   /* ---------- Stebimos prekės ---------- */
@@ -306,7 +310,7 @@
   .wg.none .wh h3 { color:var(--muted); font-weight:650; }
   .wh .wm { margin-left:auto; color:var(--muted); font-size:12.5px; text-align:right; white-space:nowrap; }
   .wh .wm b { color:var(--text); font-weight:700; }
-  .wx { width:36px; height:36px; flex-shrink:0; border:0; border-radius:10px; background:transparent; color:var(--muted);
+  .wx { width:44px; height:44px; flex-shrink:0; border:0; border-radius:10px; background:transparent; color:var(--muted);
         display:grid; place-items:center; cursor:pointer; }
   .wx:hover { background:var(--surface-2); }
   .new { font-size:11px; font-weight:800; color:var(--good); background:color-mix(in srgb, var(--good) 14%, transparent);
@@ -322,7 +326,8 @@
   .wpr { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
   .wp { font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.02em; line-height:1; }
   .wpr .badge { font-size:11px; padding:1px 5px; }
-  .wcart { position:static; width:34px; height:34px; flex-shrink:0; }
+  .wcart { position:relative; width:36px; height:36px; flex-shrink:0; }
+  .wcart::after { inset:-5px; }
   .wcart svg { width:19px; height:19px; }
   .wmore { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left;
            padding:11px 14px; font-size:14px; font-weight:650; color:var(--text); cursor:pointer; }
@@ -371,7 +376,7 @@
   .cmp-row .near { margin-top:6px; padding:8px 10px; font-size:13px; }
   .osm { color:var(--muted); font-size:11px; margin-top:8px; }
   .near-mini { color:var(--text); font-weight:650; font-size:12.5px; text-decoration:none; white-space:nowrap; border:0;
-               background:transparent; padding:4px 2px; cursor:pointer; }
+               background:transparent; padding:10px 4px; margin:-6px 0; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -585,6 +590,14 @@ function askLogin(env, msg) {
   });
 }
 
+// „atnaujinta 11.20“, o be ryšio – „be ryšio · duomenys 11.20“ (rodoma paskutinė išsaugota kopija)
+function netStatus() {
+  const g = (DATA && DATA.generated) || '', d = g ? fmtDate(g.slice(0, 10)) : '';
+  const off = navigator.onLine === false;
+  $('updated').textContent = off ? (d ? `be ryšio · duomenys ${d}` : 'be ryšio') : (d ? 'atnaujinta ' + d : '');
+  $('updated').classList.toggle('offline', off);
+}
+addEventListener('online', netStatus); addEventListener('offline', netStatus);
 async function loadData() {
   const res = await fetch('data.json', { cache: 'no-cache' });
   if (!res.ok) throw new Error(res.status);
@@ -592,7 +605,7 @@ async function loadData() {
   DATA = raw.items ? raw : await unlock(raw);   // vietinis serveris – atviras sąrašas, svetainė – užšifruotas
   for (const it of DATA.items) { it.w = it.s.split(' '); it.st = it.w.map(stem); }
   const g = DATA.generated || '';
-  $('updated').textContent = g ? 'atnaujinta ' + fmtDate(g.slice(0, 10)) : '';
+  netStatus();
 }
 
 // ta pati paieška naudojama sąraše ir stebimose prekėse
@@ -617,7 +630,7 @@ function browse() {
     : items.slice().sort((a, b) => a.x - b.x);           // data.json jau surikiuotas pagal kainą; sort() stabilus
   const total = items.length, pages = Math.max(1, Math.ceil(total / PER_PAGE));
   const page = Math.min(Math.max(1, state.page), pages);
-  return { total, page, pages, per_page: PER_PAGE, counts, results: items.slice((page - 1) * PER_PAGE, page * PER_PAGE) };
+  return { total, page, pages, per_page: PER_PAGE, counts, results: items.slice(0, page * PER_PAGE) };
 }
 
 const eur = n => n.toFixed(2).replace('.', ',');
@@ -633,6 +646,15 @@ const chainColor = c => `var(--c-${c in CHAINS ? c : 'x'}, var(--muted))`;
 // 1 prekė, 2–9 prekės, 10–20 ir 30, 40… prekių
 const prekes = n => { const d = n % 10, t = n % 100;
   return d === 1 && t !== 11 ? 'prekė' : d >= 2 && (t < 10 || t > 20) ? 'prekės' : 'prekių'; };
+// vien didžiosiomis parašytos kategorijų nuolaidos („KNYGOMS“, „SULTIMS, SULČIŲ GĖRIMAMS…“) rodomos įprastu rašymu;
+// prekės ženklai (DOBILAS, TIRA, AROMA GOLD) nekeičiami – keičiama tik, jei VISI žodžiai didžiosiomis ir yra naudininko galūnė
+const DATIVE = /(AMS|OMS|ĖMS|IMS|EMS|IAM|UI)$/;
+function dispName(n) {
+  const ws = n.match(/[A-Za-zĄČĘĖĮŠŲŪŽąčęėįšųūž]{2,}/g) || [];
+  if (!ws.length || !ws.every(w => w === w.toUpperCase()) || !ws.some(w => DATIVE.test(w))) return n;
+  const low = n.toLocaleLowerCase('lt');
+  return low.charAt(0).toLocaleUpperCase('lt') + low.slice(1);
+}
 const fmtDate = iso => iso.slice(5).replace('-', '.');
 const daysLeft = iso => Math.round((new Date(iso + 'T00:00') - new Date(today() + 'T00:00')) / 864e5);
 
@@ -686,7 +708,7 @@ function card(r, slot = false) {
 
   const body = el('div', 'body');
   const info = el('div', 'info');
-  info.append(el('h3', 'name', r.n));
+  info.append(el('h3', 'name', dispName(r.n)));
   const meta = [r.q, r.u].filter(Boolean).join(' · ');
   if (meta) info.append(el('div', 'meta', meta));
   if (r.k) info.append(el('span', 'cond', r.k));
@@ -701,7 +723,6 @@ function card(r, slot = false) {
       if (r.d) was.append(el('span', 'badge', '−' + r.d + '%'));
       price.append(was);
     }
-    if (r.o > r.p) price.append(el('span', 'save', 'sutaupote ' + eur(r.o - r.p) + ' €'));
   } else {
     price.append(el('div', 'now pct', r.d ? '−' + r.d + '%' : '—'));
     price.append(el('span', 'na', 'kaina nenurodyta'));
@@ -814,7 +835,10 @@ function renderBasket() {
   const sv = sumSave(BASKET); if (sv > 0) r.append(el('div', 'save', 'sutaupote ' + eur(sv) + ' €'));
   row.append(l, r);
   const bar = el('div', 'bar'); const fill = el('i'); fill.style.width = (done.length / n * 100) + '%'; bar.append(fill);
-  sum.append(row, bar, el('div', 'lbl', `${done.length} iš ${n} nupirkta` + (noPrice ? ` · ${noPrice} be kainos (neįskaičiuota)` : '')));
+  const wn = el('span', 'wake', ' · ☀ ekranas neužges'); wn.id = 'wakeNote'; wn.hidden = !wakeLock;
+  const st = el('div', 'lbl', `${done.length} iš ${n} nupirkta` + (noPrice ? ` · ${noPrice} be kainos (neįskaičiuota)` : ''));
+  st.append(wn);
+  sum.append(row, bar, st);
   v.append(sum);
 
   // nenupirktos – pagal parduotuvę (perkant einama iš vienos į kitą); nupirktos – suskleistos apačioje
@@ -887,6 +911,7 @@ function renderBasket() {
   };
   act.append(clr);
   v.append(act);
+  updateWake();
 }
 
 // krepšelio eilutė: didelis žymėjimas kairėje (lengva pataikyti nykščiu), pavadinimas atidaro leidinį, × – pašalinti
@@ -910,7 +935,7 @@ function basketRow(b, showStore = false) {
     sub.firstChild.append(st, (nr && nr.big ? ' · ' + fmtKm(nr.big.d) : '') + (bits ? ' · ' + bits : ''));
   } else sub.append(el('span', null, bits || (CHAINS[it.c] || it.c)));
   const wt = whenTag(it, b.done); if (wt) sub.append(wt);
-  info.append(el('div', 'wn', it.n), sub);
+  info.append(el('div', 'wn', dispName(it.n)), sub);
   const pr = el('div', 'wpr');
   pr.append(el('span', 'wp', it.p != null ? eur(it.p) + ' €' : (it.d ? '' : '—')));
   if (it.d) pr.append(el('span', 'badge', '−' + it.d + '%'));
@@ -993,7 +1018,7 @@ function watchRow(it, isNew) {
   sub.append(el('span', null, [CHAINS[it.c] || it.c, it.q, it.k].filter(Boolean).join(' · ')));
   if (isNew) sub.append(el('span', 'new', 'nauja'));
   const wt = whenTag(it); if (wt) sub.append(wt);
-  info.append(el('div', 'wn', it.n), sub);
+  info.append(el('div', 'wn', dispName(it.n)), sub);
   const pr = el('div', 'wpr');
   pr.append(el('span', 'wp', it.p != null ? eur(it.p) + ' €' : (it.d ? '' : '—')));
   if (it.d) pr.append(el('span', 'badge', '−' + it.d + '%'));
@@ -1304,9 +1329,24 @@ function recCard() {
   return box;
 }
 
+/* ---------- Krepšelyje ekranas neužgęsta (kol skiltis atidaryta ir yra ką pirkti) ---------- */
+let wakeLock = null;
+async function updateWake() {
+  const want = state.view === 'basket' && document.visibilityState === 'visible' && BASKET.some(b => !b.done);
+  try {
+    if (want && !wakeLock && 'wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; const n = $('wakeNote'); if (n) n.hidden = true; });
+    } else if (!want && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch { wakeLock = null; }
+  const n = $('wakeNote'); if (n) n.hidden = !wakeLock;
+}
+document.addEventListener('visibilitychange', updateWake);
+
 const TITLES = { list: 'Akcijos', watch: 'Stebimos', basket: 'Krepšelis' };
 async function setView(v) {
   state.view = v;
+  kv.put('view', v);   // kitą kartą atsidarys ta pati skiltis
   document.body.classList.toggle('v-basket', v === 'basket');
   document.body.classList.toggle('v-watch', v === 'watch');
   document.querySelector('.brand h1').textContent = TITLES[v];
@@ -1318,40 +1358,17 @@ async function setView(v) {
   if (v === 'basket') { syncUrl(); renderBasket(); refreshLoc(() => state.view === 'basket' && renderBasket()); }
   if (v === 'watch') { syncUrl(); if (DATA) { markWatchSeen(); renderWatch(); refreshLoc(() => state.view === 'watch' && renderWatch()); } }
   window.scrollTo(0, 0);
+  updateWake();
 }
 
-/* ---------- Puslapiavimas ---------- */
-function pageList(cur, last) {
-  // 1 … 4 5 6 … 36 — visada pirmas, paskutinis ir gretimi dabartiniam
-  const set = new Set([1, last, cur - 1, cur, cur + 1].filter(n => n >= 1 && n <= last));
-  const nums = [...set].sort((a, b) => a - b), out = [];
-  nums.forEach((n, i) => { if (i && n - nums[i - 1] > 1) out.push(n - nums[i - 1] === 2 ? n - 1 : null); out.push(n); });
-  return out;
-}
-function renderPager(page, pages) {
+/* ---------- „Rodyti daugiau“ (vietoj puslapių numerių: telefone patogiau) ---------- */
+function renderMore(data) {
   pagerEl.replaceChildren();
-  if (pages <= 1) return;
-  const btn = (label, target, opts = {}) => {
-    const b = el('button', 'pg' + (opts.cls ? ' ' + opts.cls : ''));
-    b.type = 'button';
-    if (opts.html) b.innerHTML = label; else b.textContent = label;
-    if (opts.aria) b.setAttribute('aria-label', opts.aria);
-    if (target === page && !opts.nav) b.setAttribute('aria-current', 'page');
-    if (target == null || (opts.nav && (target < 1 || target > pages))) b.disabled = true;
-    else b.onclick = () => go(target);
-    return b;
-  };
-  const arrow = d => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
-  pagerEl.append(btn(arrow('m15 18-6-6 6-6'), page - 1, { html: true, nav: true, cls: 'nav', aria: 'Ankstesnis puslapis' }));
-  for (const n of pageList(page, pages)) {
-    if (n == null) pagerEl.append(el('span', 'gap', '…'));
-    else pagerEl.append(btn(String(n), n));
-  }
-  pagerEl.append(btn(arrow('m9 18 6-6-6-6'), page + 1, { html: true, nav: true, cls: 'nav', aria: 'Kitas puslapis' }));
-}
-function go(page) {
-  state.page = page;
-  load().then(() => window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
+  const left = data.total - data.results.length;
+  if (left <= 0) return;
+  const b = el('button', 'chip more', `Rodyti daugiau · liko ${left}`); b.type = 'button';
+  b.onclick = () => { state.page++; load(true); };
+  pagerEl.append(b);
 }
 
 /* ---------- Užkrovimas ---------- */
@@ -1367,7 +1384,7 @@ function syncUrl() {
   try { history.replaceState(null, '', qs ? '?' + qs : location.pathname); } catch {}
 }
 
-async function load() {
+async function load(more = false) {
   syncUrl();
   for (const x of $('sort').children) x.setAttribute('aria-pressed', String(x.dataset.sort === state.sort));
   $('filtersBadge').hidden = state.sort === 'price' && !state.all;
@@ -1411,11 +1428,12 @@ async function load() {
     resultsEl.replaceChildren(box);
     return;
   }
-  const from = (data.page - 1) * data.per_page + 1, to = from + data.results.length - 1;
-  statusEl.replaceChildren(`${data.total} ${prekes(data.total)}` + (data.pages > 1 ? ` · ${from}–${to}` : ''));
+  statusEl.replaceChildren(`${data.total} ${prekes(data.total)}`);
   if (state.q) statusEl.append(watchToggle(state.q, 'wbtn'));
-  resultsEl.replaceChildren(...data.results.map(listCard));
-  renderPager(data.page, data.pages);
+  const shown = resultsEl.querySelectorAll('.cardbox').length;
+  if (more && shown) resultsEl.append(...data.results.slice(shown).map(listCard));   // tik naujos kortelės
+  else resultsEl.replaceChildren(...data.results.map(listCard));
+  renderMore(data);
 }
 
 function onInput(now = false) {
@@ -1452,7 +1470,14 @@ allBox.checked = state.all;
 $('searchBox').classList.toggle('has-text', !!q.value);
 if (matchMedia('(min-width: 700px)').matches && state.view === 'list') q.focus();
 for (const t of document.querySelectorAll('.tab')) t.onclick = () => { if (t.dataset.view !== state.view) setView(t.dataset.view); };
-setView(state.view);
+// be nuorodos parametrų atsidaro paskutinė naudota skiltis
+(async () => {
+  if (!params.get('view') && !params.get('q') && !params.get('chain')) {
+    const last = await kv.get('view');
+    if (last && last in TITLES) state.view = last;
+  }
+  setView(state.view);
+})();
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
