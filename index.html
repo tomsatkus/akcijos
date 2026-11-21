@@ -299,6 +299,38 @@
   .wmore { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left;
            padding:11px 14px; font-size:14px; font-weight:650; color:var(--accent); cursor:pointer; }
   .wnone { padding:0 14px 12px; margin-top:-6px; font-size:13px; color:var(--muted); }
+
+  /* ---------- Kur apsipirkti ---------- */
+  .rec { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px 12px; margin:0 0 12px;
+         border:1.5px solid color-mix(in srgb, var(--c) 45%, transparent); }
+  .rec-l { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .rec-main { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; margin:4px 0 2px; }
+  .rec-main .store { font-size:22px; letter-spacing:-.01em; text-transform:none; }
+  .rec-main .store .dot { width:10px; height:10px; }
+  .rec-main .cov { font-weight:700; font-size:15px; }
+  .rec-sub { color:var(--muted); font-size:13px; line-height:1.45; }
+  .rec-sub b { color:var(--text); font-weight:600; }
+  .near { display:flex; align-items:center; gap:10px; margin-top:10px; padding:10px 12px; border-radius:12px; background:var(--surface-2);
+          color:inherit; text-decoration:none; font-size:14px; line-height:1.35; }
+  .near .pin { font-size:18px; flex-shrink:0; }
+  .near .ni { flex:1; min-width:0; }
+  .near .ni small { display:block; color:var(--muted); font-size:12.5px; }
+  .near .go { flex-shrink:0; font-weight:700; color:var(--accent); font-size:14px; }
+  .near.small { background:transparent; border:1px dashed var(--line); padding:7px 12px; margin-top:6px; font-size:12.5px; color:var(--muted); }
+  button.near { width:100%; border:0; cursor:pointer; text-align:left; font:inherit; }
+  .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:14px; }
+  .rec-combo b { font-weight:700; }
+  .rec-more { display:block; width:100%; margin-top:10px; border:0; background:transparent; color:var(--accent); font-size:14px;
+              font-weight:650; text-align:left; padding:4px 0; cursor:pointer; }
+  .cmp { margin-top:6px; display:grid; gap:2px; }
+  .cmp-row { padding:10px 0; border-top:1px solid var(--line); }
+  .cmp-row .top { margin-bottom:2px; }
+  .cmp-row .store { font-size:13px; }
+  .cmp-row .cn { margin-left:auto; font-weight:700; color:var(--text); font-size:13px; }
+  .cmp-row .near { margin-top:6px; padding:8px 10px; font-size:13px; }
+  .osm { color:var(--muted); font-size:11px; margin-top:8px; }
+  .near-mini { color:var(--accent); font-weight:650; font-size:12.5px; text-decoration:none; white-space:nowrap; border:0;
+               background:transparent; padding:4px 2px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -727,7 +759,20 @@ function renderBasket() {
     const g = el('div', 'grp');
     const s = el('span', 'store'); s.style.setProperty('--c', chainColor(c)); s.append(el('span', 'dot'), CHAINS[c] || c);
     const gl = items.filter(b => !b.done);
-    g.append(s, `${items.length} ${prekes(items.length)}`, el('span', 'gsum', gl.length ? eur(sumP(gl)) + ' €' : '✓'));
+    g.append(s, `${items.length} ${prekes(items.length)}`);
+    if (STORES && LOC) {
+      const n = nearest(c);
+      if (n && n.big) {
+        const a = el('a', 'near-mini', '📍 ' + fmtKm(n.big.d)); a.href = mapsUrl(n.big.s); a.target = '_blank'; a.rel = 'noopener';
+        a.title = n.big.s.n + (n.big.s.a ? ', ' + n.big.s.a : '') + ' – atidaryti žemėlapyje';
+        g.append(a);
+      }
+    } else if (STORES && gl.length) {
+      const b = el('button', 'near-mini', '📍 artimiausia'); b.type = 'button';
+      b.onclick = async () => { b.textContent = 'Nustatoma…'; await locate(); if (!LOC) b.textContent = '📍 nepavyko'; else renderBasket(); };
+      g.append(b);
+    }
+    g.append(el('span', 'gsum', gl.length ? eur(sumP(gl)) + ' €' : '✓'));
     const list = el('div', 'blist');
     list.append(...items.map(basketCard));
     v.append(g, list);
@@ -874,6 +919,7 @@ function renderWatch() {
   groups.sort((a, b) => (!a.hits.length) - (!b.hits.length) || a.w.at - b.w.at);
   const withHits = groups.filter(g => g.hits.length).length;
   v.append(el('div', 'wsum', `${withHits} iš ${WATCH.length} ${plural(WATCH.length, 'prekės', 'prekių', 'prekių')} turi akcijų`));
+  const rc = recCard(); if (rc) v.append(rc);
 
   const list = el('div', 'wlist');
   for (const { w, hits } of groups) {
@@ -922,6 +968,169 @@ function markWatchSeen() {
   saveWatch();
 }
 
+/* ---------- Kur apsipirkti: tinklas, kuriame daugiausia stebimų prekių su akcija ----------
+   Žinomos tik akcijų kainos (ne įprastos), todėl lyginama, kiek stebimų prekių tinkle turi akciją, ir kiek sutaupoma. */
+const byPrice = (a, b) => (a.p ?? Infinity) - (b.p ?? Infinity);
+const savingOf = it => (it && it.o > it.p ? it.o - it.p : 0);
+function recommend() {
+  const terms = WATCH.map(w => {
+    const hits = watchHits(w);
+    return { q: w.q, rel: hits.some(h => !h.y) ? hits.filter(h => !h.y) : hits };   // tik tiksliai atitinkančios
+  }).filter(t => t.rel.length);
+  if (!terms.length) return null;
+  const chains = Object.keys(CHAINS).map(c => {
+    const pick = new Map();
+    for (const t of terms) { const it = t.rel.filter(h => h.c === c).sort(byPrice)[0]; if (it) pick.set(t.q, it); }
+    let save = 0; for (const it of pick.values()) save += savingOf(it);
+    return { c, pick, n: pick.size, save };
+  }).filter(x => x.n).sort((a, b) => b.n - a.n || b.save - a.save);
+  const best = chains[0];
+  // dvi parduotuvės: rodoma, tik jei kartu apima daugiau prekių nei geriausia viena
+  let combo = null;
+  for (let i = 0; i < chains.length; i++) for (let j = i + 1; j < chains.length; j++) {
+    const A = chains[i], B = chains[j], pick = new Map();
+    for (const t of terms) {
+      const a = A.pick.get(t.q), b = B.pick.get(t.q);
+      const it = a && b ? (byPrice(a, b) <= 0 ? a : b) : a || b;
+      if (it) pick.set(t.q, it);
+    }
+    let save = 0; for (const it of pick.values()) save += savingOf(it);
+    if (pick.size > best.n && (!combo || pick.size > combo.n || (pick.size === combo.n && save > combo.save)))
+      combo = { a: A.c, b: B.c, pick, n: pick.size, save };
+  }
+  return { chains, best, combo };
+}
+
+/* ---------- Artimiausia parduotuvė: parduotuves.json (fetch/parduotuves.py, OpenStreetMap) ----------
+   Vieta nustatoma tik paspaudus ir lieka telefone. Atstumas pėsčiomis apytikslis: tiesi linija × 1,3, 5 km/h. */
+let STORES = null, LOC = null, LOCERR = '';
+async function loadStores() {
+  try { const r = await fetch('parduotuves.json', { cache: 'no-cache' }); if (r.ok) STORES = (await r.json()).stores || null; } catch {}
+  LOC = (await kv.get('loc')) || null;
+}
+function locate() {
+  return new Promise(ok => {
+    if (!navigator.geolocation) { LOCERR = 'Šis telefonas vietos nustatyti neleidžia.'; return ok(null); }
+    navigator.geolocation.getCurrentPosition(p => {
+      LOC = { lat: p.coords.latitude, lon: p.coords.longitude, at: Date.now() }; LOCERR = '';
+      kv.put('loc', LOC); ok(LOC);
+    }, e => {
+      LOCERR = e.code === 1 ? 'Vietos naudoti neleista. Leiskite tai naršyklės nustatymuose ir bandykite dar kartą.'
+                            : 'Vietos nustatyti nepavyko. Bandykite dar kartą.';
+      ok(null);
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
+  });
+}
+// jei leidimas jau duotas ir vieta senesnė nei 10 min. – atnaujinama tyliai
+async function refreshLoc(after) {
+  if (!STORES || !LOC || Date.now() - LOC.at < 6e5) return;
+  try { const st = await navigator.permissions.query({ name: 'geolocation' }); if (st.state !== 'granted') return; } catch { return; }
+  if (await locate()) after();
+}
+function distKm(a, b) {
+  const k = Math.cos(a.lat * Math.PI / 180) * 111.32;
+  return Math.hypot((a.lat - b.lat) * 110.54, (a.lon - b.lon) * k);
+}
+function nearest(chain) {
+  if (!STORES || !LOC) return null;
+  let big = null, small = null;
+  for (const s of STORES) {
+    if (s.c !== chain) continue;
+    const d = distKm(LOC, s) * 1.3;
+    if (s.s) { if (!small || d < small.d) small = { s, d }; }
+    else if (!big || d < big.d) big = { s, d };
+  }
+  return { big: big || small, small: big && small && small.d < big.d ? small : null };
+}
+const fmtKm = km => km < 1 ? `~${Math.max(50, Math.round(km * 20) * 50)} m` : `~${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} km`;
+const fmtWalk = km => { if (km > 6) return fmtKm(km); const m = Math.max(1, Math.round(km / 5 * 60)); return `${fmtKm(km)} · ~${m} min pėsčiomis`; };
+const mapsUrl = s => `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}&travelmode=walking`;
+
+function nearLink(n, cls = 'near') {
+  const a = el('a', cls); a.href = mapsUrl(n.s); a.target = '_blank'; a.rel = 'noopener';
+  a.setAttribute('aria-label', `Atidaryti žemėlapyje: ${n.s.n}${n.s.a ? ', ' + n.s.a : ''}`);
+  const i = el('span', 'ni', n.s.n + (n.s.a ? ', ' + n.s.a : ''));
+  i.append(el('small', null, fmtWalk(n.d) + (n.s.s ? ' · mažesnė parduotuvė' : '')));
+  a.append(el('span', 'pin', '📍'), i, el('span', 'go', 'Žemėlapis ›'));
+  return a;
+}
+// artimiausios parduotuvės eilutė(s) tinklui; be vietos – mygtukas „Rasti artimiausią“
+function storeLines(c, rerender) {
+  const out = [];
+  if (!STORES) return out;
+  if (!LOC) {
+    const b = el('button', 'near'); b.type = 'button';
+    const i = el('span', 'ni', `Rasti artimiausią ${CHAINS[c]}`);
+    i.append(el('small', null, LOCERR || 'Vieta naudojama tik šiame telefone ir niekur nesiunčiama'));
+    b.append(el('span', 'pin', '📍'), i, el('span', 'go', '›'));
+    b.onclick = async () => { b.disabled = true; b.querySelector('small').textContent = 'Nustatoma vieta…'; await locate(); rerender(); };
+    out.push(b);
+    return out;
+  }
+  const n = nearest(c);
+  if (!n || !n.big) return out;
+  out.push(nearLink(n.big));
+  if (n.small) {   // arčiau esanti maža parduotuvė – viena kukli eilutė
+    const sm = el('a', 'near small'); sm.href = mapsUrl(n.small.s); sm.target = '_blank'; sm.rel = 'noopener';
+    sm.append(el('span', 'ni', `Arčiau: ${n.small.s.n} · ${fmtKm(n.small.d)} – maža, akcijų gali nebūti`), el('span', 'go', '›'));
+    out.push(sm);
+  }
+  return out;
+}
+
+let cmpOpen = false;
+function recCard() {
+  const r = recommend();
+  if (!r) return null;
+  const { best, combo, chains } = r, N = WATCH.length;
+  const box = el('section', 'rec'); box.style.setProperty('--c', chainColor(best.c));
+  box.append(el('div', 'rec-l', 'Šią savaitę geriausia'));
+  const main = el('div', 'rec-main');
+  const st = el('span', 'store'); st.append(el('span', 'dot'), CHAINS[best.c]);
+  main.append(st, el('span', 'cov', `${best.n} iš ${N} ${plural(N, 'prekės', 'prekių', 'prekių')}`));
+  if (best.save > 0) main.append(el('span', 'save', `sutaupote ~${eur(best.save)} €`));
+  box.append(main);
+  const sub = el('div', 'rec-sub');
+  sub.append('Su akcija: ', el('b', null, [...best.pick.keys()].join(', ')));
+  const miss = WATCH.map(w => w.q).filter(q => !best.pick.has(q));
+  if (miss.length) sub.append(el('br'), 'Be akcijos: ' + miss.join(', '));
+  box.append(sub, ...storeLines(best.c, renderWatch));
+
+  if (combo) {
+    const cb = el('div', 'rec-combo');
+    const inA = [...combo.pick].filter(([, it]) => it.c === combo.a).map(([q]) => q);
+    const inB = [...combo.pick].filter(([, it]) => it.c === combo.b).map(([q]) => q);
+    cb.append('Arba dvi parduotuvės: ', el('b', null, `${CHAINS[combo.a]} + ${CHAINS[combo.b]}`),
+      ` – ${combo.n} iš ${N}` + (combo.save > 0 ? `, sutaupote ~${eur(combo.save)} €` : ''));
+    const d = el('div', 'rec-sub');
+    d.append(`${CHAINS[combo.a]}: ${inA.join(', ')}`, el('br'), `${CHAINS[combo.b]}: ${inB.join(', ')}`);
+    cb.append(d);
+    box.append(cb);
+  }
+
+  if (chains.length > 1) {
+    const more = el('button', 'rec-more', cmpOpen ? 'Slėpti palyginimą ▴' : `Palyginti visus tinklus (${chains.length}) ▾`);
+    more.type = 'button'; more.setAttribute('aria-expanded', String(cmpOpen));
+    more.onclick = () => { cmpOpen = !cmpOpen; renderWatch(); };
+    box.append(more);
+    if (cmpOpen) {
+      const cmp = el('div', 'cmp');
+      for (const ch of chains) {
+        const row = el('div', 'cmp-row'); row.style.setProperty('--c', chainColor(ch.c));
+        const top = el('div', 'top');
+        const s2 = el('span', 'store'); s2.append(el('span', 'dot'), CHAINS[ch.c]);
+        top.append(s2, el('span', 'cn', `${ch.n} iš ${N}` + (ch.save > 0 ? ` · ~${eur(ch.save)} €` : '')));
+        row.append(top, el('div', 'rec-sub', [...ch.pick].map(([q, it]) => `${q} ${it.p != null ? eur(it.p) + ' €' : '−' + it.d + '%'}`).join(' · ')));
+        if (LOC && STORES) { const n = nearest(ch.c); if (n && n.big) row.append(nearLink(n.big)); }
+        cmp.append(row);
+      }
+      box.append(cmp);
+    }
+  }
+  if (STORES) box.append(el('div', 'osm', 'Parduotuvių vietos: © OpenStreetMap bendraautoriai · atstumas apytikslis'));
+  return box;
+}
+
 const TITLES = { list: 'Akcijos', watch: 'Stebimos', basket: 'Krepšelis' };
 async function setView(v) {
   state.view = v;
@@ -934,8 +1143,8 @@ async function setView(v) {
   $('watchView').hidden = v !== 'watch';
   confirmClear = false;
   if (v === 'list' || !DATA) await load();   // pirmą kartą užkrauna duomenis, krepšelį ir stebimas
-  if (v === 'basket') { syncUrl(); renderBasket(); }
-  if (v === 'watch') { syncUrl(); if (DATA) { markWatchSeen(); renderWatch(); } }
+  if (v === 'basket') { syncUrl(); renderBasket(); refreshLoc(() => state.view === 'basket' && renderBasket()); }
+  if (v === 'watch') { syncUrl(); if (DATA) { markWatchSeen(); renderWatch(); refreshLoc(() => state.view === 'watch' && renderWatch()); } }
   window.scrollTo(0, 0);
 }
 
@@ -997,6 +1206,7 @@ async function load() {
       await loadData();
       await loadBasket();
       await loadWatch();
+      await loadStores();
     } catch (e) {
       statusEl.textContent = '';
       const box = el('div', 'empty');
