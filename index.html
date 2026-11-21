@@ -237,9 +237,16 @@
           transition:background .15s, color .15s, border-color .15s; }
   .slot:active { transform:scale(.92); }
   .slot.on { background:var(--text); border-color:var(--text); color:var(--bg); }
+  @media (prefers-color-scheme: dark) {
+    .slot.on { background:color-mix(in srgb, var(--text) 20%, var(--surface)); border-color:color-mix(in srgb, var(--text) 35%, var(--surface));
+               color:var(--text); }
+  }
   .slot.rm { border-color:transparent; background:transparent; color:var(--muted); }
 
   /* ---------- Krepšelis ---------- */
+  .grp .glbl { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text); }
+  .rstore { color:var(--c); font-weight:700; }
+  .pinx { text-decoration:none; font-size:16px; }
   .bcard { background:var(--surface); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
   .brow { position:relative; display:flex; align-items:center; padding-right:4px; border-top:1px solid var(--line); }
   .brow:first-child { border-top:0; }
@@ -258,6 +265,7 @@
              background:transparent; font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
              color:var(--muted); cursor:pointer; }
   .gone { font-size:12px; font-weight:700; color:var(--warn); white-space:nowrap; }
+  .wsub .soon { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; }
   .toast { position:fixed; z-index:30; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 76px); max-width:480px;
            margin:0 auto; display:flex; align-items:center; gap:12px; padding:10px 8px 10px 16px; border-radius:14px;
            background:var(--text); color:var(--bg); font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
@@ -759,6 +767,14 @@ const ICON = {
 };
 
 let doneOpen = false;
+// galiojimo žyma eilutėms (krepšelis, stebimos): baigėsi / nuo … / baigiasi šiandien, rytoj
+function whenTag(it, quiet) {
+  const t = today();
+  if (it.t && it.t < t) return el('span', 'gone', 'baigėsi ' + fmtDate(it.t));
+  if (it.f && it.f > t) return el('span', 'soon', 'nuo ' + fmtDate(it.f));
+  if (!quiet && it.t && daysLeft(it.t) <= 1) return el('span', 'gone', daysLeft(it.t) ? 'baigiasi rytoj' : 'baigiasi šiandien');
+  return null;
+}
 /* ---------- Pranešimas „… · Atšaukti“: šalinama iš karto, bet 5 s galima atšaukti ---------- */
 let toastTimer;
 function toast(msg, undo) {
@@ -803,9 +819,13 @@ function renderBasket() {
 
   // nenupirktos – pagal parduotuvę (perkant einama iš vienos į kitą); nupirktos – suskleistos apačioje
   const keys = [...Object.keys(CHAINS), ...new Set(BASKET.map(b => b.it.c).filter(c => !(c in CHAINS)))];
+  // parduotuvės su keliomis prekėmis – atskira grupė; po vieną prekę – visos vienoje kortelėje, tinklas nurodomas eilutėje
+  const singles = keys.filter(c => left.filter(b => b.it.c === c).length === 1);
+  const multi = keys.filter(c => left.filter(b => b.it.c === c).length > 1);
+  if (singles.length === 1) multi.push(singles.pop());   // viena tokia – įprasta grupė
   for (const c of keys) {
+    if (!multi.includes(c)) continue;
     const items = left.filter(b => b.it.c === c).sort((a, b) => a.at - b.at);
-    if (!items.length) continue;
     const g = el('div', 'grp');
     const s = el('span', 'store'); s.style.setProperty('--c', chainColor(c)); s.append(el('span', 'dot'), CHAINS[c] || c);
     g.append(s, `${items.length} ${prekes(items.length)}`);
@@ -823,7 +843,16 @@ function renderBasket() {
     }
     g.append(el('span', 'gsum', eur(sumP(items)) + ' €'));
     const list = el('div', 'bcard');
-    list.append(...items.map(basketRow));
+    list.append(...items.map(b => basketRow(b)));
+    v.append(g, list);
+  }
+  if (singles.length) {
+    const items = singles.map(c => left.find(b => b.it.c === c));
+    const g = el('div', 'grp');
+    g.append(el('span', 'glbl', 'Kitose parduotuvėse'), `${items.length} ${prekes(items.length)}`,
+      el('span', 'gsum', eur(sumP(items)) + ' €'));
+    const list = el('div', 'bcard');
+    list.append(...items.map(b => basketRow(b, true)));
     v.append(g, list);
   }
 
@@ -835,7 +864,7 @@ function renderBasket() {
     v.append(t);
     if (open) {
       const list = el('div', 'bcard done');
-      list.append(...done.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(basketRow));
+      list.append(...done.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(b => basketRow(b, true)));
       v.append(list);
     }
   }
@@ -861,7 +890,7 @@ function renderBasket() {
 }
 
 // krepšelio eilutė: didelis žymėjimas kairėje (lengva pataikyti nykščiu), pavadinimas atidaro leidinį, × – pašalinti
-function basketRow(b) {
+function basketRow(b, showStore = false) {
   const it = b.it, t = today();
   const r = el('div', 'brow' + (b.done ? ' done' : ''));
   r.style.setProperty('--c', chainColor(it.c));
@@ -874,9 +903,13 @@ function basketRow(b) {
   if (it.l) { a.href = it.l; a.target = '_blank'; a.rel = 'noopener'; }
   const info = el('div', 'wi'), sub = el('div', 'wsub');
   const bits = [it.q, it.k].filter(Boolean).join(' · ');
-  sub.append(el('span', null, bits || (CHAINS[it.c] || it.c)));
-  if (it.t && it.t < t) sub.append(el('span', 'gone', 'baigėsi ' + fmtDate(it.t)));
-  else if (it.t && !b.done && daysLeft(it.t) <= 1) sub.append(el('span', 'gone', daysLeft(it.t) ? 'baigiasi rytoj' : 'baigiasi šiandien'));
+  if (showStore) {   // tinklo pavadinimas ir atstumas pačioje eilutėje
+    const st = el('b', 'rstore', CHAINS[it.c] || it.c);
+    const nr = !b.done && STORES && LOC ? nearest(it.c) : null;
+    sub.append(el('span', null, ''));
+    sub.firstChild.append(st, (nr && nr.big ? ' · ' + fmtKm(nr.big.d) : '') + (bits ? ' · ' + bits : ''));
+  } else sub.append(el('span', null, bits || (CHAINS[it.c] || it.c)));
+  const wt = whenTag(it, b.done); if (wt) sub.append(wt);
   info.append(el('div', 'wn', it.n), sub);
   const pr = el('div', 'wpr');
   pr.append(el('span', 'wp', it.p != null ? eur(it.p) + ' €' : (it.d ? '' : '—')));
@@ -889,7 +922,16 @@ function basketRow(b) {
     BASKET = BASKET.filter(o => o !== b); saveBasket(); renderBasket();
     toast('Pašalinta: ' + it.n, () => { BASKET = prev; saveBasket(); renderBasket(); });
   };
-  r.append(ch, a, x);
+  r.append(ch, a);
+  if (showStore && !b.done && STORES && LOC) {   // žemėlapis šiai parduotuvei
+    const nr = nearest(it.c);
+    if (nr && nr.big) {
+      const m = el('a', 'wx pinx', '📍'); m.href = mapsUrl(nr.big.s); m.target = '_blank'; m.rel = 'noopener';
+      m.setAttribute('aria-label', `Artimiausia ${CHAINS[it.c]} žemėlapyje: ${nr.big.s.n}${nr.big.s.a ? ', ' + nr.big.s.a : ''}`);
+      r.append(m);
+    }
+  }
+  r.append(x);
   return r;
 }
 
@@ -950,6 +992,7 @@ function watchRow(it, isNew) {
   const info = el('div', 'wi'), sub = el('div', 'wsub');
   sub.append(el('span', null, [CHAINS[it.c] || it.c, it.q, it.k].filter(Boolean).join(' · ')));
   if (isNew) sub.append(el('span', 'new', 'nauja'));
+  const wt = whenTag(it); if (wt) sub.append(wt);
   info.append(el('div', 'wn', it.n), sub);
   const pr = el('div', 'wpr');
   pr.append(el('span', 'wp', it.p != null ? eur(it.p) + ' €' : (it.d ? '' : '—')));
