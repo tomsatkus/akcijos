@@ -17,10 +17,13 @@
 <style>
   :root {
     --bg:#f4f5f7; --surface:#ffffff; --surface-2:#eef0f3; --text:#14171c; --muted:#5d6470; --line:#e3e6ea;
-    --accent:#e0352b; --accent-soft:#fde9e7; --good:#0f9d58; --warn:#b45309; --warn-soft:#fff4e0;
+    --accent:#e0352b; --accent-soft:#fde9e7; --good:#0b7a43; --warn:#b45309; --warn-soft:#fff4e0;
     --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.06);
     --radius:18px;
     --c-maxima:#d7262e; --c-iki:#e5007e; --c-lidl:#0b4ea2; --c-rimi:#9e1b45; --c-norfa:#e8a000;
+    /* tinklų pavadinimų tekstas: kontrastas ≥ 4,5:1 (taškai ir juostelės lieka ryškios --c-*) */
+    --t-maxima:#d7262e; --t-iki:#c8006d; --t-lidl:#0b4ea2; --t-rimi:#9e1b45; --t-norfa:#8a5c00;
+    --badge:#cf2a20; --err:#c0281e;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -28,6 +31,8 @@
       --accent:#ff5b4f; --accent-soft:#3a1d1b; --good:#34c37a; --warn:#f0a43a; --warn-soft:#33260f;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
       --c-lidl:#4d8be0; --c-rimi:#d65a7c;
+      --t-maxima:#ff6b6b; --t-iki:#ff5fae; --t-lidl:#6a9ff0; --t-rimi:#e8829b; --t-norfa:#e8a000;
+      --err:#ff6b6b;
     }
   }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -83,10 +88,11 @@
   .chips { display:flex; gap:6px; overflow-x:auto; padding:10px 16px 2px; scrollbar-width:none; scroll-padding:0 16px; }
   .chips::-webkit-scrollbar { display:none; }
   .chip {
-    flex-shrink:0; display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 12px;
+    position:relative; flex-shrink:0; display:inline-flex; align-items:center; gap:6px; height:40px; padding:0 14px;
     border:1px solid var(--line); border-radius:999px; background:var(--surface); cursor:pointer;
     font-size:14px; font-weight:600; color:var(--text); transition:background .15s, border-color .15s, color .15s;
   }
+  .chip::after { content:""; position:absolute; inset:-3px -2px; }   /* paspaudžiama ~46 px */
   .chip .dot { width:8px; height:8px; border-radius:50%; background:var(--c); }
   .chip[aria-pressed="true"] { background:var(--text); border-color:var(--text); color:var(--bg); }
   .chip[aria-pressed="true"] .dot { box-shadow:0 0 0 2px var(--bg); }
@@ -109,7 +115,7 @@
   #loginFields input:focus { outline:none; border-color:var(--muted); box-shadow:0 0 0 4px color-mix(in srgb, var(--text) 12%, transparent); }
   #loginFields .primary { margin-top:6px; }
   #loginFields .primary:disabled { opacity:.6; }
-  .lerr { color:var(--accent); font-size:14px; min-height:20px; }
+  .lerr { color:var(--err); font-size:14px; min-height:20px; }
   .secondary { width:100%; height:46px; margin-top:10px; border:0; border-radius:14px; background:transparent; color:var(--muted);
                font-size:15px; font-weight:600; cursor:pointer; }
 
@@ -127,9 +133,13 @@
   .sheet h2 { font-size:18px; margin:0 0 16px; }
   .field-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:8px; }
   .seg { display:flex; background:var(--surface-2); border-radius:12px; padding:3px; }
-  .seg button { flex:1; border:0; background:transparent; padding:10px 8px; border-radius:9px; font-size:14px; font-weight:600;
+  .seg button { flex:1; border:0; background:transparent; padding:12px 8px; min-height:44px; border-radius:9px; font-size:14px; font-weight:600;
                 color:var(--muted); cursor:pointer; }
   .seg button[aria-pressed="true"] { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  @media (prefers-color-scheme: dark) {
+    .seg { background:var(--bg); }
+    .seg button[aria-pressed="true"] { background:color-mix(in srgb, var(--text) 16%, var(--surface)); box-shadow:none; }
+  }
   .toggle { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:15px; margin:18px 0 20px;
             padding:14px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); cursor:pointer; user-select:none; }
   .toggle input { appearance:none; -webkit-appearance:none; width:46px; height:28px; border-radius:999px; background:var(--line);
@@ -156,7 +166,7 @@
   @keyframes pop { from { opacity:0; transform:translateY(6px); } }
   .top { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
   .store { display:inline-flex; align-items:center; gap:5px; font-weight:700; letter-spacing:.03em;
-           text-transform:uppercase; color:var(--c); }
+           text-transform:uppercase; color:var(--ct, var(--c)); }
   .store .dot { width:7px; height:7px; border-radius:50%; background:var(--c); }
   .pg-ref { display:inline-flex; align-items:center; gap:3px; }
   .pg-ref::before { content:"·"; margin-right:3px; }
@@ -167,7 +177,9 @@
   .name { font-weight:650; font-size:15.5px; line-height:1.3; margin:0 0 3px; overflow-wrap:anywhere;
           display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .meta { color:var(--muted); font-size:13px; line-height:1.4; }
-  .cond { display:inline-block; margin-top:5px; font-size:12px; font-weight:600; color:var(--text);
+  .cond-row { margin-top:6px; }
+  .card.withslot .cond-row { margin-right:50px; }
+  .cond { display:inline-block; margin-top:0; font-size:12px; font-weight:600; color:var(--text);
           background:var(--surface-2); padding:2px 7px; border-radius:6px; }
   .price { text-align:right; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
   .now { font-size:24px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--text); font-variant-numeric:tabular-nums; }
@@ -176,7 +188,7 @@
   .was { display:flex; align-items:center; gap:6px; }
   .old { color:var(--muted); text-decoration:line-through; font-size:13px; font-variant-numeric:tabular-nums; }
   .na { color:var(--muted); font-size:12px; }
-  .badge { background:var(--accent); color:#fff; font-size:12px; font-weight:800; padding:2px 6px; border-radius:6px;
+  .badge { background:var(--badge); color:#fff; font-size:12px; font-weight:800; padding:2px 6px; border-radius:6px;
            font-variant-numeric:tabular-nums; }
   .save { color:var(--good); font-size:12px; font-weight:600; white-space:nowrap; }
   .warn { font-size:12px; color:var(--warn); background:var(--warn-soft); padding:5px 8px; border-radius:8px; }
@@ -216,7 +228,7 @@
             padding:6px 12px calc(env(safe-area-inset-bottom) + 6px); border-top:1px solid var(--line);
             background:color-mix(in srgb, var(--surface) 88%, transparent);
             backdrop-filter:saturate(1.6) blur(16px); -webkit-backdrop-filter:saturate(1.6) blur(16px); }
-  body.locked .tabbar { display:none; }
+  body.locked .tabbar, body.typing .tabbar { display:none; }
   .tab { position:relative; flex:1; max-width:220px; border:0; background:transparent; border-radius:12px; cursor:pointer;
          display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0 4px;
          font-size:11.5px; font-weight:650; color:var(--muted); }
@@ -224,7 +236,7 @@
   .tab svg { width:56px; height:30px; padding:3px 16px; border-radius:15px; transition:background .15s; box-sizing:border-box; }
   .tab[aria-selected="true"] svg { background:var(--surface-2); }
   .tab .cnt { position:absolute; top:0; left:calc(50% + 9px); min-width:18px; height:18px; padding:0 5px; border-radius:9px;
-              background:var(--accent); color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center;
+              background:var(--badge); color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center;
               font-variant-numeric:tabular-nums; box-shadow:0 0 0 2px var(--surface); }
   .tab .cnt.bump { animation:bump .35s ease; }
   @keyframes bump { 50% { transform:scale(1.3); } }
@@ -249,8 +261,9 @@
 
   /* ---------- Krepšelis ---------- */
   .grp .glbl { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text); }
-  .rstore { color:var(--c); font-weight:700; }
-  .pinx { text-decoration:none; font-size:16px; }
+  .rstore { color:var(--ct, var(--c)); font-weight:700; }
+  .pinx { text-decoration:none; color:var(--muted); }
+  .pinx svg { width:19px; height:19px; }
   .bcard { background:var(--surface); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
   .brow { position:relative; display:flex; align-items:center; padding-right:4px; border-top:1px solid var(--line); }
   .brow:first-child { border-top:0; }
@@ -265,7 +278,7 @@
   .brow.done .wp, .brow.done .badge { opacity:.5; }
   .brow.done::before { opacity:.35; }
   .bcard.done { box-shadow:none; background:transparent; border:1px solid var(--line); }
-  .donebtn { display:flex; justify-content:space-between; width:100%; margin:22px 0 8px; padding:6px 2px; border:0;
+  .donebtn { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:44px; margin:14px 0 4px; padding:6px 2px; border:0;
              background:transparent; font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
              color:var(--muted); cursor:pointer; }
   .gone { font-size:12px; font-weight:700; color:var(--warn); white-space:nowrap; }
@@ -331,7 +344,7 @@
   .wcart::after { inset:-5px; }
   .wcart svg { width:19px; height:19px; }
   .wmore { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left;
-           padding:11px 14px; font-size:14px; font-weight:650; color:var(--text); cursor:pointer; }
+           padding:12px 14px; min-height:44px; font-size:14px; font-weight:650; color:var(--text); cursor:pointer; }
   .wnone { padding:0 14px 12px; margin-top:-6px; font-size:13px; color:var(--muted); }
 
   /* ---------- Kur apsipirkti ---------- */
@@ -355,7 +368,10 @@
   .rec-sub b { color:var(--text); font-weight:600; }
   .near { display:flex; align-items:center; gap:10px; margin-top:10px; padding:10px 12px; border-radius:12px; background:var(--surface-2);
           color:inherit; text-decoration:none; font-size:14px; line-height:1.35; }
-  .near .pin { font-size:18px; flex-shrink:0; }
+  .near .pin { flex-shrink:0; display:grid; place-items:center; color:var(--muted); }
+  .near .pin svg { width:20px; height:20px; }
+  .ico { display:inline-grid; vertical-align:-3px; margin-right:3px; }
+  .ico svg { width:14px; height:14px; }
   .near .ni { flex:1; min-width:0; }
   .near .ni small { display:block; color:var(--muted); font-size:12.5px; }
   .near .go { flex-shrink:0; font-weight:700; color:var(--text); font-size:14px; }
@@ -363,12 +379,12 @@
   button.near { width:100%; border:0; cursor:pointer; text-align:left; font:inherit; }
   .near-city { display:block; width:100%; margin-top:6px; padding:9px 12px; border-radius:12px; border:1px solid var(--line);
     background:var(--surface-2); color:inherit; font:inherit; font-size:14px; }
-  .near-change { display:inline-block; margin-top:6px; padding:2px 0; border:0; background:none; color:var(--muted);
+  .near-change { display:inline-flex; align-items:center; min-height:44px; margin-top:0; padding:0 2px; border:0; background:none; color:var(--muted);
     font:inherit; font-size:12.5px; text-decoration:underline; cursor:pointer; }
   .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:14px; }
   .rec-combo b { font-weight:700; }
-  .rec-more { display:block; width:100%; margin-top:10px; border:0; background:transparent; color:var(--text); font-size:14px;
-              font-weight:650; text-align:left; padding:4px 0; cursor:pointer; }
+  .rec-more { display:block; width:100%; margin-top:0; border:0; background:transparent; color:var(--text); font-size:14px;
+              font-weight:650; text-align:left; padding:4px 0; min-height:44px; cursor:pointer; }
   .cmp { margin-top:6px; display:grid; gap:2px; }
   .cmp-row { padding:10px 0; border-top:1px solid var(--line); }
   .cmp-row .top { margin-bottom:2px; }
@@ -650,6 +666,11 @@ function el(tag, cls, text) {
   return e;
 }
 const chainColor = c => `var(--c-${c in CHAINS ? c : 'x'}, var(--muted))`;
+// leidinio užrašai, kurie naudotojui nieko nesako („TIK“ prie Rimi kainų) – nerodomi
+const condOf = it => (it.k && !/^tik!?$/i.test(it.k.trim()) ? it.k : null);
+const chainText = c => `var(--t-${c in CHAINS ? c : 'x'}, var(--muted))`;
+// tinklo spalva elementui: --c – taškams ir juostelėms, --ct – tekstui (skaitomesnis atspalvis)
+const tint = (e, c) => { e.style.setProperty('--c', chainColor(c)); e.style.setProperty('--ct', chainText(c)); };
 // 1 prekė, 2–9 prekės, 10–20 ir 30, 40… prekių
 const prekes = n => { const d = n % 10, t = n % 100;
   return d === 1 && t !== 11 ? 'prekė' : d >= 2 && (t < 10 || t > 20) ? 'prekės' : 'prekių'; };
@@ -673,7 +694,7 @@ function renderChains(counts) {
     const b = el('button', 'chip');
     b.type = 'button';
     b.setAttribute('aria-pressed', String(state.chain === key));
-    if (key) { b.style.setProperty('--c', chainColor(key)); b.append(el('span', 'dot')); }
+    if (key) { tint(b, key); b.append(el('span', 'dot')); }
     b.append(label);
     if (n != null) b.append(el('span', 'n', n));
     b.onclick = () => { state.chain = state.chain === key ? null : key; state.page = 1; load(); };
@@ -698,7 +719,7 @@ function card(r, slot = false) {
   const expired = r.t && r.t < t;
   const c = el(r.l ? 'a' : 'article', 'card' + (expired ? ' expired' : ''));
   if (r.l) { c.href = r.l; c.target = '_blank'; c.rel = 'noopener'; }
-  c.style.setProperty('--c', chainColor(r.c));
+  tint(c, r.c);
   c.setAttribute('aria-label', `${CHAINS[r.c] || r.c}: ${r.n}` + (r.p != null ? `, ${eur(r.p)} €` : '') +
     (r.l ? `. Atidaryti leidinį, ${r.pg} puslapis` : ''));
 
@@ -718,7 +739,6 @@ function card(r, slot = false) {
   info.append(el('h3', 'name', dispName(r.n)));
   const meta = [r.q, r.u].filter(Boolean).join(' · ');
   if (meta) info.append(el('div', 'meta', meta));
-  if (r.k) info.append(el('span', 'cond', r.k));
 
   const price = el('div', 'price');
   if (r.p != null) {
@@ -737,6 +757,8 @@ function card(r, slot = false) {
   if (slot) c.classList.add('withslot');
   body.append(info, price);
   c.append(body);
+  const k = condOf(r);
+  if (k) { const cr = el('div', 'cond-row'); cr.append(el('span', 'cond', k)); c.append(cr); }   // sąlyga – per visą plotį
 
   if (r.r) c.append(el('div', 'warn', '⚠ Kaina gali būti nuskaityta neteisingai – patikrinkite leidinyje'));
   return c;
@@ -790,7 +812,9 @@ function listCard(r) {
 const gone = b => !!(b.it.t && b.it.t < today());
 const sumP = list => list.reduce((a, b) => a + (gone(b) ? 0 : b.it.p ?? 0), 0);
 const sumSave = list => list.reduce((a, b) => a + (!gone(b) && b.it.o > b.it.p ? b.it.o - b.it.p : 0), 0);
+const pinIco = () => { const i = el('span', 'ico'); i.innerHTML = ICON.pin; return i; };
 const ICON = {
+  pin: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
   add: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 6.5"/><circle cx="9.5" cy="20.5" r="1.2"/><circle cx="16.5" cy="20.5" r="1.2"/><path d="M13.5 6.5v6M10.5 9.5h6" stroke-width="2.3"/></svg>',
   inb: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 6.5"/><circle cx="9.5" cy="20.5" r="1.2"/><circle cx="16.5" cy="20.5" r="1.2"/><path d="m10.5 9.8 2.2 2.2 4-4.3" stroke-width="2.4"/></svg>',
   rm: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -844,7 +868,7 @@ function renderBasket() {
   const sv = sumSave(BASKET); if (sv > 0) r.append(el('div', 'save', 'sutaupote ' + eur(sv) + ' €'));
   row.append(l, r);
   const bar = el('div', 'bar'); const fill = el('i'); fill.style.width = (done.length / n * 100) + '%'; bar.append(fill);
-  const wn = el('span', 'wake', ' · ☀ ekranas neužges'); wn.id = 'wakeNote'; wn.hidden = !wakeLock;
+  const wn = el('span', 'wake', ' · ekranas neužges'); wn.id = 'wakeNote'; wn.hidden = !wakeLock;
   const st = el('div', 'lbl', `${done.length} iš ${n} nupirkta` + (noPrice ? ` · ${noPrice} be kainos (neįskaičiuota)` : '')
     + (nGone ? ` · ${nGone} ${plural(nGone, 'akcija pasibaigė', 'akcijos pasibaigė', 'akcijų pasibaigė')} (neįskaičiuota)` : ''));
   st.append(wn);
@@ -861,18 +885,18 @@ function renderBasket() {
     if (!multi.includes(c)) continue;
     const items = left.filter(b => b.it.c === c).sort((a, b) => a.at - b.at);
     const g = el('div', 'grp');
-    const s = el('span', 'store'); s.style.setProperty('--c', chainColor(c)); s.append(el('span', 'dot'), CHAINS[c] || c);
+    const s = el('span', 'store'); tint(s, c); s.append(el('span', 'dot'), CHAINS[c] || c);
     g.append(s, `${items.length} ${prekes(items.length)}`);
     if (STORES && LOC) {
       const nr = nearest(c);
       if (nr && nr.big) {
-        const a = el('a', 'near-mini', '📍 ' + fmtKm(nr.big.d)); a.href = mapsUrl(nr.big.s); a.target = '_blank'; a.rel = 'noopener';
+        const a = el('a', 'near-mini'); a.append(pinIco(), fmtKm(nr.big.d)); a.href = mapsUrl(nr.big.s); a.target = '_blank'; a.rel = 'noopener';
         a.title = storeName(nr.big.s) + (nr.big.s.a ? ', ' + nr.big.s.a : '') + ' – atidaryti žemėlapyje';
         g.append(a);
       }
     } else if (STORES) {
-      const b = el('button', 'near-mini', '📍 artimiausia'); b.type = 'button';
-      b.onclick = async () => { b.textContent = 'Nustatoma…'; await locate(); if (!LOC) { b.textContent = '📍 nepavyko'; b.title = LOCERR; } else renderBasket(); };
+      const b = el('button', 'near-mini'); b.append(pinIco(), 'artimiausia'); b.type = 'button';
+      b.onclick = async () => { b.textContent = 'Nustatoma…'; await locate(); if (!LOC) { b.replaceChildren(pinIco(), 'nepavyko'); b.title = LOCERR; } else renderBasket(); };
       g.append(b);
     }
     g.append(el('span', 'gsum', eur(sumP(items)) + ' €'));
@@ -883,7 +907,7 @@ function renderBasket() {
   if (singles.length) {
     const items = singles.map(c => left.find(b => b.it.c === c));
     const g = el('div', 'grp');
-    g.append(el('span', 'glbl', 'Kitose parduotuvėse'), `${items.length} ${prekes(items.length)}`,
+    g.append(el('span', 'glbl', multi.length ? 'Kitose parduotuvėse' : 'Skirtingose parduotuvėse'), `${items.length} ${prekes(items.length)}`,
       el('span', 'gsum', eur(sumP(items)) + ' €'));
     const list = el('div', 'bcard');
     list.append(...items.map(b => basketRow(b, true)));
@@ -928,7 +952,7 @@ function renderBasket() {
 function basketRow(b, showStore = false) {
   const it = b.it, t = today();
   const r = el('div', 'brow' + (b.done ? ' done' : ''));
-  r.style.setProperty('--c', chainColor(it.c));
+  tint(r, it.c);
   const ch = el('button', 'check'); ch.type = 'button';
   ch.setAttribute('role', 'checkbox'); ch.setAttribute('aria-checked', String(b.done));
   ch.setAttribute('aria-label', 'Nupirkta: ' + it.n);
@@ -937,7 +961,7 @@ function basketRow(b, showStore = false) {
   const a = el(it.l ? 'a' : 'div', 'wlink');
   if (it.l) { a.href = it.l; a.target = '_blank'; a.rel = 'noopener'; }
   const info = el('div', 'wi'), sub = el('div', 'wsub');
-  const bits = [it.q, it.k].filter(Boolean).join(' · ');
+  const bits = [it.q, condOf(it)].filter(Boolean).join(' · ');
   if (showStore) {   // tinklo pavadinimas ir atstumas pačioje eilutėje
     const st = el('b', 'rstore', CHAINS[it.c] || it.c);
     const nr = !b.done && STORES && LOC ? nearest(it.c) : null;
@@ -961,7 +985,7 @@ function basketRow(b, showStore = false) {
   if (showStore && !b.done && STORES && LOC) {   // žemėlapis šiai parduotuvei
     const nr = nearest(it.c);
     if (nr && nr.big) {
-      const m = el('a', 'wx pinx', '📍'); m.href = mapsUrl(nr.big.s); m.target = '_blank'; m.rel = 'noopener';
+      const m = el('a', 'wx pinx'); m.innerHTML = ICON.pin; m.href = mapsUrl(nr.big.s); m.target = '_blank'; m.rel = 'noopener';
       m.setAttribute('aria-label', `Artimiausia ${CHAINS[it.c]} žemėlapyje: ${storeName(nr.big.s)}${nr.big.s.a ? ', ' + nr.big.s.a : ''}`);
       r.append(m);
     }
@@ -1021,11 +1045,11 @@ function watchToggle(q, cls) {
 
 function watchRow(it, isNew) {
   const r = el('div', 'wrow');
-  r.style.setProperty('--c', chainColor(it.c));
+  tint(r, it.c);
   const a = el(it.l ? 'a' : 'div', 'wlink');
   if (it.l) { a.href = it.l; a.target = '_blank'; a.rel = 'noopener'; }
   const info = el('div', 'wi'), sub = el('div', 'wsub');
-  sub.append(el('span', null, [CHAINS[it.c] || it.c, it.q, it.k].filter(Boolean).join(' · ')));
+  sub.append(el('span', null, [CHAINS[it.c] || it.c, it.q, condOf(it)].filter(Boolean).join(' · ')));
   if (isNew) sub.append(el('span', 'new', 'nauja'));
   const wt = whenTag(it); if (wt) sub.append(wt);
   info.append(el('div', 'wn', dispName(it.n)), sub);
@@ -1263,7 +1287,8 @@ function nearLink(n, cls = 'near') {
   a.setAttribute('aria-label', `Atidaryti žemėlapyje: ${storeName(n.s)}${n.s.a ? ', ' + n.s.a : ''}`);
   const i = el('span', 'ni', storeName(n.s) + (n.s.a ? ', ' + n.s.a : ''));
   i.append(el('small', null, (LOC && LOC.city ? `${LOC.city}, nuo centro ${fmtKm(n.d)}` : fmtWalk(n.d)) + (isSmall(n.s) ? ' · mažesnė parduotuvė' : '')));
-  a.append(el('span', 'pin', '📍'), i, el('span', 'go', 'Žemėlapis ›'));
+  const pn = el('span', 'pin'); pn.innerHTML = ICON.pin;
+  a.append(pn, i, el('span', 'go', 'Žemėlapis ›'));
   return a;
 }
 // artimiausios parduotuvės eilutė(s) tinklui; be vietos – mygtukas „Rasti artimiausią“
@@ -1274,7 +1299,8 @@ function storeLines(c, rerender) {
     const b = el('button', 'near'); b.type = 'button';
     const i = el('span', 'ni', `Rasti artimiausią ${CHAINS[c]}`);
     i.append(el('small', null, LOCERR || 'Vieta naudojama tik šiame telefone ir niekur nesiunčiama'));
-    b.append(el('span', 'pin', '📍'), i, el('span', 'go', '›'));
+    const pn = el('span', 'pin'); pn.innerHTML = ICON.pin;
+    b.append(pn, i, el('span', 'go', '›'));
     b.onclick = async () => { b.disabled = true; b.querySelector('small').textContent = 'Nustatoma vieta…'; await locate(); rerender(); };
     out.push(b);
     if (LOCERR) out.push(cityPicker(rerender));
@@ -1303,7 +1329,7 @@ function recCard() {
   const r = recommend();
   if (!r) return null;
   const { best, combo, chains, soon } = r, N = WATCH.length;
-  const box = el('section', 'rec'); box.style.setProperty('--c', chainColor(best.c));
+  const box = el('section', 'rec'); tint(box, best.c);
   // suskleista – viena eilutė (kad matytųsi pačios stebimos prekės); paspaudus – visa informacija
   const head = el('button', 'rec-head'); head.type = 'button'; head.setAttribute('aria-expanded', String(recOpen));
   head.onclick = () => { recOpen = !recOpen; renderWatch(); };
@@ -1312,7 +1338,7 @@ function recCard() {
   main.append(st, el('span', 'cov', `${best.n} iš ${N}`));
   const bs = saveText(best.pick, best.save); if (bs) main.append(el('span', 'save', bs));
   const nb = LOC && STORES && nearest(best.c);
-  if (nb && nb.big) main.append(el('span', 'dist', '📍 ' + (LOC.city || fmtKm(nb.big.d))));
+  if (nb && nb.big) { const d = el('span', 'dist'); d.append(pinIco(), LOC.city || fmtKm(nb.big.d)); main.append(d); }
   const lbl = el('div', 'rec-l', 'Šią savaitę geriausia');
   const txt = el('div', 'rec-ht'); txt.append(lbl, main);
   head.append(txt, el('span', 'chev', recOpen ? '▴' : '▾'));
@@ -1323,6 +1349,11 @@ function recCard() {
   const miss = WATCH.map(w => w.q).filter(q => !best.pick.has(q));
   if (miss.length) sub.append(el('br'), 'Be akcijos: ' + miss.map(q => soon.has(q) ? `${q} (akcija nuo ${fmtDate(soon.get(q))})` : q).join(', '));
   box.append(sub, ...storeLines(best.c, renderWatch));
+  if (STORES && LOC) {   // vietos keitimas – prie parduotuvės adreso
+    const ch = el('button', 'near-change', LOC.city ? `Miestas: ${LOC.city} · keisti` : 'Keisti vietą'); ch.type = 'button';
+    ch.onclick = async () => { LOC = null; LOCERR = ''; await kv.put('loc'); renderWatch(); };
+    box.append(ch);
+  }
 
   if (combo) {
     const cb = el('div', 'rec-combo');
@@ -1344,7 +1375,7 @@ function recCard() {
     if (cmpOpen) {
       const cmp = el('div', 'cmp');
       for (const ch of chains) {
-        const row = el('div', 'cmp-row'); row.style.setProperty('--c', chainColor(ch.c));
+        const row = el('div', 'cmp-row'); tint(row, ch.c);
         const top = el('div', 'top');
         const s2 = el('span', 'store'); s2.append(el('span', 'dot'), CHAINS[ch.c]);
         top.append(s2, el('span', 'cn', `${ch.n} iš ${N}` + (saveText(ch.pick, ch.save) ? ` · ${saveText(ch.pick, ch.save)}` : '')));
@@ -1354,11 +1385,6 @@ function recCard() {
       }
       box.append(cmp);
     }
-  }
-  if (STORES && LOC) {
-    const ch = el('button', 'near-change', LOC.city ? `Miestas: ${LOC.city} · keisti` : 'Keisti vietą'); ch.type = 'button';
-    ch.onclick = async () => { LOC = null; LOCERR = ''; await kv.put('loc'); renderWatch(); };
-    box.append(ch);
   }
   if (STORES) box.append(el('div', 'osm', 'Parduotuvių vietos: © OpenStreetMap bendraautoriai · atstumas apytikslis'));
   return box;
@@ -1377,6 +1403,14 @@ async function updateWake() {
   const n = $('wakeNote'); if (n) n.hidden = !wakeLock;
 }
 document.addEventListener('visibilitychange', updateWake);
+
+// telefone rašant apatinė juosta paslepiama (kitaip ji pakyla virš klaviatūros ir užima vietą rezultatams)
+if (matchMedia('(pointer: coarse)').matches) {
+  const isField = e => e.target.matches && e.target.matches('input[type=search], input[type=text], input:not([type])');
+  document.addEventListener('focusin', e => { if (isField(e)) document.body.classList.add('typing'); });
+  document.addEventListener('focusout', e => { if (isField(e)) setTimeout(() => {
+    if (!document.activeElement || !isField({ target: document.activeElement })) document.body.classList.remove('typing'); }, 50); });
+}
 
 const TITLES = { list: 'Akcijos', watch: 'Stebimos', basket: 'Krepšelis' };
 async function setView(v) {
