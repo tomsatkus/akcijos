@@ -299,6 +299,12 @@
   .bar > i { display:block; height:100%; background:var(--good); border-radius:3px; transition:width .3s; }
   .grp { display:flex; align-items:center; gap:8px; margin:20px 2px 8px; font-size:13px; color:var(--muted); }
   .grp .store { font-size:13px; }
+  .bsplit { padding:10px 16px 6px; border-top:1px solid var(--line); font-size:12px; font-weight:700; color:var(--muted);
+            background:var(--surface-2); text-transform:uppercase; letter-spacing:.04em; }
+  .bsplit.warn { color:var(--warn); }
+  .bsplit small { display:block; margin-top:2px; font-size:12px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--muted); }
+  .rec-main .ends { font-size:13px; font-weight:700; color:var(--warn); white-space:nowrap; }
+  .rec-alt { margin-top:8px; }
   .grp .gsum { margin-left:auto; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
   .blist { display:grid; gap:8px; }
   @media (min-width:700px) { .blist { grid-template-columns:1fr 1fr; } }
@@ -366,6 +372,7 @@
   .rec .rec-sub:first-of-type { margin-top:8px; }
   .rec-sub { color:var(--muted); font-size:13px; line-height:1.45; }
   .rec-sub b { color:var(--text); font-weight:600; }
+  .rec-sub b.warnt { color:var(--warn); }
   .near { display:flex; align-items:center; gap:10px; margin-top:10px; padding:10px 12px; border-radius:12px; background:var(--surface-2);
           color:inherit; text-decoration:none; font-size:14px; line-height:1.35; }
   .near .pin { flex-shrink:0; display:grid; place-items:center; color:var(--muted); }
@@ -684,6 +691,11 @@ function dispName(n) {
   return low.charAt(0).toLocaleUpperCase('lt') + low.slice(1);
 }
 const fmtDate = iso => iso.slice(5).replace('-', '.');
+const WDAY = ['sekmadienio', 'pirmadienio', 'antradienio', 'trečiadienio', 'ketvirtadienio', 'penktadienio', 'šeštadienio'];
+// „nuo rytojaus (11.22)“, „nuo pirmadienio (11.23)“; toliau nei savaitė – tik data
+const fromDay = iso => { const n = daysLeft(iso);
+  return n === 1 ? `nuo rytojaus (${fmtDate(iso)})` : n > 1 && n < 7 ? `nuo ${WDAY[new Date(iso + 'T00:00').getDay()]} (${fmtDate(iso)})` : 'nuo ' + fmtDate(iso); };
+const endWord = iso => { const n = daysLeft(iso); return n <= 0 ? 'šiandien' : n === 1 ? 'rytoj' : fmtDate(iso); };
 const daysLeft = iso => Math.round((new Date(iso + 'T00:00') - new Date(today() + 'T00:00')) / 864e5);
 
 /* ---------- Parduotuvių filtras ---------- */
@@ -901,7 +913,7 @@ function renderBasket() {
     }
     g.append(el('span', 'gsum', eur(sumP(items)) + ' €'));
     const list = el('div', 'bcard');
-    list.append(...items.map(b => basketRow(b)));
+    list.append(...tripRows(items));
     v.append(g, list);
   }
   if (singles.length) {
@@ -946,6 +958,29 @@ function renderBasket() {
   act.append(clr);
   v.append(act);
   updateWake();
+}
+
+// vieno tinklo prekės pagal apsipirkimą: jau galiojančios, po jų – prasidedančios vėliau (kiekviena data – atskirai).
+// Jei dalis galiojančių baigiasi anksčiau, nei prasideda vėlesnės, tai jau kitas apsipirkimas – pažymima aiškiai.
+function tripRows(items) {
+  const t = today(), now = items.filter(b => !b.it.f || b.it.f <= t || gone(b));
+  const starts = [...new Set(items.filter(b => !now.includes(b)).map(b => b.it.f))].sort();
+  const out = now.map(b => basketRow(b));
+  let prev = now;
+  for (const f of starts) {
+    const these = items.filter(b => !now.includes(b) && b.it.f === f);
+    const ending = prev.filter(b => !gone(b) && b.it.t && b.it.t < f);   // nebegalios, kai prasidės šios
+    const h = el('div', 'bsplit' + (ending.length ? ' warn' : ''), ending.length ? `Kitam apsipirkimui · ${fromDay(f)}` : fromDay(f));
+    if (ending.length) {
+      const ends = [...new Set(ending.map(b => b.it.t))].sort();
+      h.append(el('small', null, (ending.length === prev.length ? (prev.length > 1 ? 'Aukščiau esančios akcijos baigiasi ' : 'Aukščiau esanti akcija baigiasi ')
+        : `${ending.length} ${plural(ending.length, 'akcija', 'akcijos', 'akcijų')} aukščiau baigiasi `) + ends.map(endWord).join(', ')
+        + ' – vienu kartu visų akcijos kaina nenupirksite'));
+    }
+    out.push(h, ...these.map(b => basketRow(b)));
+    prev = these;
+  }
+  return out;
 }
 
 // krepšelio eilutė: didelis žymėjimas kairėje (lengva pataikyti nykščiu), pavadinimas atidaro leidinį, × – pašalinti
@@ -1177,7 +1212,8 @@ function recommend() {
     const pick = new Map();
     for (const t of terms) { const it = t.rel.filter(h => h.c === c).sort(byPrice)[0]; if (it) pick.set(t.q, it); }
     let save = 0; for (const it of pick.values()) save += savingOf(it);
-    return { c, pick, n: pick.size, save };
+    const end = [...pick.values()].map(it => it.t).filter(Boolean).sort()[0] || null;   // anksčiausiai baigiasi
+    return { c, pick, n: pick.size, save, end };
   }).filter(x => x.n).sort((a, b) => b.n - a.n || b.save - a.save);
   const best = chains[0];
   // dvi parduotuvės: rodoma, tik jei kartu apima daugiau prekių nei geriausia viena
@@ -1337,6 +1373,11 @@ function recCard() {
   const st = el('span', 'store'); st.append(el('span', 'dot'), CHAINS[best.c]);
   main.append(st, el('span', 'cov', `${best.n} iš ${N}`));
   const bs = saveText(best.pick, best.save); if (bs) main.append(el('span', 'save', bs));
+  const endingSoon = [...best.pick.values()].filter(it => it.t && daysLeft(it.t) <= 1);
+  if (endingSoon.length) {
+    const w = endWord(endingSoon.map(it => it.t).sort()[0]);
+    main.append(el('span', 'ends', endingSoon.length === best.n ? (best.n > 1 ? `visos baigiasi ${w}` : `baigiasi ${w}`) : `${endingSoon.length} baigiasi ${w}`));
+  }
   const nb = LOC && STORES && nearest(best.c);
   if (nb && nb.big) { const d = el('span', 'dist'); d.append(pinIco(), LOC.city || fmtKm(nb.big.d)); main.append(d); }
   const lbl = el('div', 'rec-l', 'Šią savaitę geriausia');
@@ -1348,7 +1389,22 @@ function recCard() {
   sub.append('Su akcija: ', el('b', null, [...best.pick.keys()].join(', ')));
   const miss = WATCH.map(w => w.q).filter(q => !best.pick.has(q));
   if (miss.length) sub.append(el('br'), 'Be akcijos: ' + miss.map(q => soon.has(q) ? `${q} (akcija nuo ${fmtDate(soon.get(q))})` : q).join(', '));
-  box.append(sub, ...storeLines(best.c, renderWatch));
+  if (endingSoon.length && endingSoon.length < best.n) {   // kai baigiasi visos – pakanka žymos viršuje
+    const byEnd = new Map();
+    for (const [q, it] of best.pick) if (it.t && daysLeft(it.t) <= 1) byEnd.set(it.t, [...(byEnd.get(it.t) || []), q]);
+    for (const [d, qs] of [...byEnd].sort()) sub.append(el('br'), el('b', 'warnt', `Baigiasi ${endWord(d)} (${fmtDate(d)}): `), qs.join(', '));
+  }
+  box.append(sub);
+  // ilgiau galiojanti alternatyva: tinklas, kurio akcijos dar galios po to, kai baigsis geriausio (bent ne mažiau prekių – 1)
+  const alt = endingSoon.length && chains.filter(ch => ch !== best && ch.n >= best.n - 1 && (!ch.end || daysLeft(ch.end) > 1))
+    .sort((a, b) => b.n - a.n || (b.end || '9') .localeCompare(a.end || '9') || b.save - a.save)[0];
+  if (alt) {
+    const a = el('div', 'rec-sub rec-alt');
+    a.append('Jei apsipirksite vėliau: ', el('b', null, CHAINS[alt.c]), ` – ${alt.n} iš ${N}, `
+      + (alt.end ? `akcijos galioja iki ${fmtDate(alt.end)}` : 'akcijos galioja ilgiau'));
+    box.append(a);
+  }
+  box.append(...storeLines(best.c, renderWatch));
   if (STORES && LOC) {   // vietos keitimas – prie parduotuvės adreso
     const ch = el('button', 'near-change', LOC.city ? `Miestas: ${LOC.city} · keisti` : 'Keisti vietą'); ch.type = 'button';
     ch.onclick = async () => { LOC = null; LOCERR = ''; await kv.put('loc'); renderWatch(); };
