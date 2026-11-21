@@ -233,7 +233,8 @@
   /* ---------- Kortelė su mygtuku krepšeliui ---------- */
   .cardbox { position:relative; }
   /* mygtukas yra šalia nuorodos (ne jos viduje), o kainos stulpelyje jam paliekama vieta (.slot-space) */
-  .slot-space { display:block; width:38px; height:38px; margin-top:4px; }
+  .card.withslot .body { padding-right:50px; }   /* sąraše krepšelio mygtukas – dešinėje šalia kainos */
+  .cardbox > .slot { top:42px; bottom:auto; }
   .slot { position:absolute; right:14px; bottom:12px; width:38px; height:38px; padding:0; border-radius:50%; cursor:pointer;
           display:grid; place-items:center; border:1px solid var(--line); background:var(--surface); color:var(--text);
           transition:background .15s, color .15s, border-color .15s; }
@@ -326,7 +327,7 @@
   .wpr { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
   .wp { font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.02em; line-height:1; }
   .wpr .badge { font-size:11px; padding:1px 5px; }
-  .wcart { position:relative; width:36px; height:36px; flex-shrink:0; }
+  .wcart { position:relative; right:auto; bottom:auto; width:36px; height:36px; flex-shrink:0; }   /* .slot poslinkiai čia netaikomi */
   .wcart::after { inset:-5px; }
   .wcart svg { width:19px; height:19px; }
   .wmore { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left;
@@ -476,7 +477,7 @@ const params = new URLSearchParams(location.search);
 const state = {
   q: params.get('q') || '',
   chain: CHAINS[params.get('chain')] ? params.get('chain') : null,
-  sort: params.get('sort') === 'discount' ? 'discount' : 'price',
+  sort: ['discount', 'price'].includes(params.get('sort')) ? params.get('sort') : null,   // null – automatiškai (sortMode)
   page: Math.max(1, parseInt(params.get('page')) || 1),
   all: params.get('all') === '1',
   view: { krepselis: 'basket', stebimos: 'watch' }[params.get('view')] || 'list',
@@ -619,15 +620,21 @@ function matchItems(items, text) {
   return items;
 }
 
+// be paieškos – didžiausios nuolaidos (įdomiausios akcijos), su paieška – pigiausios; kol naudotojas nepasirinko pats
+const sortMode = () => state.sort || (state.q.trim() ? 'price' : 'discount');
+
 function browse() {
   const t = today();
   let items = matchItems(DATA.items.filter(it => state.all || !it.t || it.t >= t), state.q);
+  // kaip „Stebimose“: pirmiau prekės su tiksliai tuo pačiu žodžiu („kava“), po jų kitos formos („prie kavos“)
+  const words = normalize(state.q).split(' ').filter(Boolean);
+  for (const it of items) it.y = words.length && !words.every(x => it.w.includes(x)) ? 1 : 0;
   const counts = {};
   for (const it of items) counts[it.c] = (counts[it.c] || 0) + 1;
   if (state.chain) items = items.filter(it => it.c === state.chain);
-  items = state.sort === 'discount'
-    ? items.slice().sort((a, b) => a.x - b.x || (b.d ?? -1) - (a.d ?? -1))
-    : items.slice().sort((a, b) => a.x - b.x);           // data.json jau surikiuotas pagal kainą; sort() stabilus
+  items = sortMode() === 'discount'
+    ? items.slice().sort((a, b) => a.x - b.x || a.y - b.y || (a.p == null) - (b.p == null) || (b.d ?? -1) - (a.d ?? -1))   // be kainos – po kitų
+    : items.slice().sort((a, b) => a.x - b.x || a.y - b.y);   // data.json jau surikiuotas pagal kainą; sort() stabilus
   const total = items.length, pages = Math.max(1, Math.ceil(total / PER_PAGE));
   const page = Math.min(Math.max(1, state.page), pages);
   return { total, page, pages, per_page: PER_PAGE, counts, results: items.slice(0, page * PER_PAGE) };
@@ -727,7 +734,7 @@ function card(r, slot = false) {
     price.append(el('div', 'now pct', r.d ? '−' + r.d + '%' : '—'));
     price.append(el('span', 'na', 'kaina nenurodyta'));
   }
-  if (slot) price.append(el('span', 'slot-space'));
+  if (slot) c.classList.add('withslot');
   body.append(info, price);
   c.append(body);
 
@@ -857,7 +864,7 @@ function renderBasket() {
       const nr = nearest(c);
       if (nr && nr.big) {
         const a = el('a', 'near-mini', '📍 ' + fmtKm(nr.big.d)); a.href = mapsUrl(nr.big.s); a.target = '_blank'; a.rel = 'noopener';
-        a.title = nr.big.s.n + (nr.big.s.a ? ', ' + nr.big.s.a : '') + ' – atidaryti žemėlapyje';
+        a.title = storeName(nr.big.s) + (nr.big.s.a ? ', ' + nr.big.s.a : '') + ' – atidaryti žemėlapyje';
         g.append(a);
       }
     } else if (STORES) {
@@ -952,7 +959,7 @@ function basketRow(b, showStore = false) {
     const nr = nearest(it.c);
     if (nr && nr.big) {
       const m = el('a', 'wx pinx', '📍'); m.href = mapsUrl(nr.big.s); m.target = '_blank'; m.rel = 'noopener';
-      m.setAttribute('aria-label', `Artimiausia ${CHAINS[it.c]} žemėlapyje: ${nr.big.s.n}${nr.big.s.a ? ', ' + nr.big.s.a : ''}`);
+      m.setAttribute('aria-label', `Artimiausia ${CHAINS[it.c]} žemėlapyje: ${storeName(nr.big.s)}${nr.big.s.a ? ', ' + nr.big.s.a : ''}`);
       r.append(m);
     }
   }
@@ -1162,7 +1169,10 @@ function recommend() {
    Vieta nustatoma tik paspaudus ir lieka telefone. Atstumas pėsčiomis apytikslis: tiesi linija × 1,3, 5 km/h. */
 let STORES = null, LOC = null, LOCERR = '';
 async function loadStores() {
-  try { const r = await fetch('parduotuves.json', { cache: 'no-cache' }); if (r.ok) STORES = (await r.json()).stores || null; } catch {}
+  try {
+    const r = await fetch('parduotuves.json', { cache: 'no-cache' });
+    if (r.ok) STORES = ((await r.json()).stores || []).filter(st => !/uždaryt|closed/i.test(st.n));   // uždarytos nerodomos
+  } catch {}
   LOC = (await kv.get('loc')) || null;
 }
 function locate() {
@@ -1211,6 +1221,17 @@ async function refreshLoc(after) {
   try { const st = await navigator.permissions.query({ name: 'geolocation' }); if (st.state !== 'granted') return; } catch { return; }
   if (await locate()) after();
 }
+// OpenStreetMap pavadinimai nevienodi („Iki“, „RIMI Hypermarket“, „Maxima x“) – rodomi vienodai
+const CHAIN_NAME = { maxima: 'Maxima', iki: 'IKI', lidl: 'Lidl', rimi: 'Rimi', norfa: 'Norfa' };
+function storeName(st) {
+  return st.n.replace(/^(maxima|iki|lidl|rimi|norfa)(?=\s|$)/i, CHAIN_NAME[st.c] || '$1')
+    .replace(/(\s)hypermarket(?=\s|$)/i, '$1Hyper')
+    .replace(/(\s)(x{1,3}|xl|xxl|l|s)(?=\s|$)/i, (m, sp, f) => sp + f.toUpperCase())
+    .replace(/(\s)(express|ekspres|cento|mini|super|hyper|bazė)(?=\s|$)/gi, (m, sp, w) => sp + w[0].toUpperCase() + w.slice(1).toLowerCase());
+}
+// didelių formatų (XL, Hyper ir pan.) parduotuvė niekada nelaikoma maža, net jei taip pažymėta OpenStreetMap
+const BIG_FMT = /(^|\s)(xl|xxl|xx|xxx|l|hyper|hypermarket|super|bazė)(?=\s|$)/iu;
+const isSmall = st => !!st.s && !BIG_FMT.test(st.n);
 function distKm(a, b) {
   const k = Math.cos(a.lat * Math.PI / 180) * 111.32;
   return Math.hypot((a.lat - b.lat) * 110.54, (a.lon - b.lon) * k);
@@ -1221,7 +1242,7 @@ function nearest(chain) {
   for (const s of STORES) {
     if (s.c !== chain) continue;
     const d = distKm(LOC, s) * 1.3;
-    if (s.s) { if (!small || d < small.d) small = { s, d }; }
+    if (isSmall(s)) { if (!small || d < small.d) small = { s, d }; }
     else if (!big || d < big.d) big = { s, d };
   }
   return { big: big || small, small: big && small && small.d < big.d ? small : null };
@@ -1232,9 +1253,9 @@ const mapsUrl = s => `https://www.google.com/maps/dir/?api=1&destination=${s.lat
 
 function nearLink(n, cls = 'near') {
   const a = el('a', cls); a.href = mapsUrl(n.s); a.target = '_blank'; a.rel = 'noopener';
-  a.setAttribute('aria-label', `Atidaryti žemėlapyje: ${n.s.n}${n.s.a ? ', ' + n.s.a : ''}`);
-  const i = el('span', 'ni', n.s.n + (n.s.a ? ', ' + n.s.a : ''));
-  i.append(el('small', null, (LOC && LOC.city ? `${LOC.city}, nuo centro ${fmtKm(n.d)}` : fmtWalk(n.d)) + (n.s.s ? ' · mažesnė parduotuvė' : '')));
+  a.setAttribute('aria-label', `Atidaryti žemėlapyje: ${storeName(n.s)}${n.s.a ? ', ' + n.s.a : ''}`);
+  const i = el('span', 'ni', storeName(n.s) + (n.s.a ? ', ' + n.s.a : ''));
+  i.append(el('small', null, (LOC && LOC.city ? `${LOC.city}, nuo centro ${fmtKm(n.d)}` : fmtWalk(n.d)) + (isSmall(n.s) ? ' · mažesnė parduotuvė' : '')));
   a.append(el('span', 'pin', '📍'), i, el('span', 'go', 'Žemėlapis ›'));
   return a;
 }
@@ -1257,13 +1278,20 @@ function storeLines(c, rerender) {
   out.push(nearLink(n.big));
   if (n.small) {   // arčiau esanti maža parduotuvė – viena kukli eilutė
     const sm = el('a', 'near small'); sm.href = mapsUrl(n.small.s); sm.target = '_blank'; sm.rel = 'noopener';
-    sm.append(el('span', 'ni', `Arčiau: ${n.small.s.n} · ${fmtKm(n.small.d)} – maža, akcijų gali nebūti`), el('span', 'go', '›'));
+    sm.append(el('span', 'ni', `Arčiau: ${storeName(n.small.s)} · ${fmtKm(n.small.d)} – maža, akcijų gali nebūti`), el('span', 'go', '›'));
     out.push(sm);
   }
   return out;
 }
 
 let cmpOpen = false, recOpen = false;
+// sutaupymas žinomas tik ten, kur leidinyje yra sena kaina (Lidl jos dažnai nenurodo):
+// kai žinoma mažiau nei pusei prekių – suma nerodoma, kai ne visoms – „bent ~X €“
+function saveText(pick, save) {
+  const n = pick.size, k = [...pick.values()].filter(it => it.o != null && it.p != null).length;
+  if (!(save > 0) || k * 2 < n) return '';
+  return (k < n ? 'bent ~' : '~') + eur(save) + ' €';
+}
 function recCard() {
   const r = recommend();
   if (!r) return null;
@@ -1275,7 +1303,7 @@ function recCard() {
   const main = el('div', 'rec-main');
   const st = el('span', 'store'); st.append(el('span', 'dot'), CHAINS[best.c]);
   main.append(st, el('span', 'cov', `${best.n} iš ${N}`));
-  if (best.save > 0) main.append(el('span', 'save', `~${eur(best.save)} €`));
+  const bs = saveText(best.pick, best.save); if (bs) main.append(el('span', 'save', bs));
   const nb = LOC && STORES && nearest(best.c);
   if (nb && nb.big) main.append(el('span', 'dist', '📍 ' + (LOC.city || fmtKm(nb.big.d))));
   const lbl = el('div', 'rec-l', 'Šią savaitę geriausia');
@@ -1294,7 +1322,7 @@ function recCard() {
     const inA = [...combo.pick].filter(([, it]) => it.c === combo.a).map(([q]) => q);
     const inB = [...combo.pick].filter(([, it]) => it.c === combo.b).map(([q]) => q);
     cb.append('Arba dvi parduotuvės: ', el('b', null, `${CHAINS[combo.a]} + ${CHAINS[combo.b]}`),
-      ` – ${combo.n} iš ${N}` + (combo.save > 0 ? `, sutaupote ~${eur(combo.save)} €` : ''));
+      ` – ${combo.n} iš ${N}` + (saveText(combo.pick, combo.save) ? `, sutaupote ${saveText(combo.pick, combo.save)}` : ''));
     const d = el('div', 'rec-sub');
     d.append(`${CHAINS[combo.a]}: ${inA.join(', ')}`, el('br'), `${CHAINS[combo.b]}: ${inB.join(', ')}`);
     cb.append(d);
@@ -1312,7 +1340,7 @@ function recCard() {
         const row = el('div', 'cmp-row'); row.style.setProperty('--c', chainColor(ch.c));
         const top = el('div', 'top');
         const s2 = el('span', 'store'); s2.append(el('span', 'dot'), CHAINS[ch.c]);
-        top.append(s2, el('span', 'cn', `${ch.n} iš ${N}` + (ch.save > 0 ? ` · ~${eur(ch.save)} €` : '')));
+        top.append(s2, el('span', 'cn', `${ch.n} iš ${N}` + (saveText(ch.pick, ch.save) ? ` · ${saveText(ch.pick, ch.save)}` : '')));
         row.append(top, el('div', 'rec-sub', [...ch.pick].map(([q, it]) => `${q} ${it.p != null ? eur(it.p) + ' €' : '−' + it.d + '%'}`).join(' · ')));
         if (LOC && STORES) { const n = nearest(ch.c); if (n && n.big) row.append(nearLink(n.big)); }
         cmp.append(row);
@@ -1376,7 +1404,7 @@ function syncUrl() {
   const p = new URLSearchParams();
   if (state.q) p.set('q', state.q);
   if (state.chain) p.set('chain', state.chain);
-  if (state.sort !== 'price') p.set('sort', state.sort);
+  if (state.sort) p.set('sort', state.sort);
   if (state.all) p.set('all', '1');
   if (state.page > 1) p.set('page', state.page);
   if (state.view !== 'list') p.set('view', state.view === 'basket' ? 'krepselis' : 'stebimos');
@@ -1386,8 +1414,8 @@ function syncUrl() {
 
 async function load(more = false) {
   syncUrl();
-  for (const x of $('sort').children) x.setAttribute('aria-pressed', String(x.dataset.sort === state.sort));
-  $('filtersBadge').hidden = state.sort === 'price' && !state.all;
+  for (const x of $('sort').children) x.setAttribute('aria-pressed', String(x.dataset.sort === sortMode()));
+  $('filtersBadge').hidden = !state.sort && !state.all;
   if (!DATA) {
     statusEl.textContent = 'Kraunama…';
     resultsEl.replaceChildren(...[0, 1, 2, 3].map(() => el('div', 'skel')));
@@ -1428,7 +1456,7 @@ async function load(more = false) {
     resultsEl.replaceChildren(box);
     return;
   }
-  statusEl.replaceChildren(`${data.total} ${prekes(data.total)}`);
+  statusEl.replaceChildren(`${data.total} ${prekes(data.total)}` + (sortMode() === 'discount' ? ' · didžiausios nuolaidos pirmos' : ''));
   if (state.q) statusEl.append(watchToggle(state.q, 'wbtn'));
   const shown = resultsEl.querySelectorAll('.cardbox').length;
   if (more && shown) resultsEl.append(...data.results.slice(shown).map(listCard));   // tik naujos kortelės
@@ -1451,7 +1479,7 @@ q.addEventListener('keydown', e => { if (e.key === 'Enter') { q.blur(); onInput(
 $('clear').onclick = () => { q.value = ''; q.focus(); onInput(true); };
 allBox.addEventListener('change', () => { state.all = allBox.checked; state.page = 1; load(); });
 $('sort').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b || b.dataset.sort === state.sort) return;
+  const b = e.target.closest('button'); if (!b || b.dataset.sort === sortMode()) return;
   state.sort = b.dataset.sort; state.page = 1; load();
 });
 
