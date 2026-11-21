@@ -62,7 +62,7 @@
     box-shadow:var(--shadow); transition:border-color .15s, box-shadow .15s; -webkit-appearance:none; appearance:none;
   }
   #q::placeholder { color:var(--muted); }
-  #q:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+  #q:focus { outline:none; border-color:var(--muted); box-shadow:0 0 0 4px color-mix(in srgb, var(--text) 12%, transparent); }
   #q::-webkit-search-cancel-button { display:none; }
   #clear { position:absolute; right:6px; top:50%; transform:translateY(-50%); width:38px; height:38px;
            border:0; border-radius:12px; background:transparent; color:var(--muted); cursor:pointer; display:none; }
@@ -71,7 +71,7 @@
   .iconbtn { position:relative; width:50px; height:50px; flex-shrink:0; border:1px solid var(--line); border-radius:15px;
              background:var(--surface); box-shadow:var(--shadow); display:grid; place-items:center; cursor:pointer; color:var(--text); }
   .iconbtn:active { transform:scale(.96); }
-  .dotbadge { position:absolute; top:9px; right:9px; width:9px; height:9px; border-radius:50%; background:var(--accent);
+  .dotbadge { position:absolute; top:9px; right:9px; width:9px; height:9px; border-radius:50%; background:var(--text);
               box-shadow:0 0 0 2px var(--surface); }
 
   /* parduotuvių juosta: kraštas blunka, kai yra ką slinkti */
@@ -105,7 +105,7 @@
   #loginFields { width:100%; display:flex; flex-direction:column; gap:10px; }
   #loginFields input { width:100%; height:50px; padding:0 16px; font-size:17px; border:1px solid var(--line); border-radius:14px;
                        background:var(--surface); color:var(--text); box-shadow:var(--shadow); -webkit-appearance:none; appearance:none; }
-  #loginFields input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+  #loginFields input:focus { outline:none; border-color:var(--muted); box-shadow:0 0 0 4px color-mix(in srgb, var(--text) 12%, transparent); }
   #loginFields .primary { margin-top:6px; }
   #loginFields .primary:disabled { opacity:.6; }
   .lerr { color:var(--accent); font-size:14px; min-height:20px; }
@@ -135,7 +135,7 @@
                   position:relative; cursor:pointer; transition:background .2s; margin:0; flex-shrink:0; }
   .toggle input::after { content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%;
                          background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .2s; }
-  .toggle input:checked { background:var(--accent); }
+  .toggle input:checked { background:var(--text); }
   .toggle input:checked::after { transform:translateX(18px); }
   .primary { width:100%; height:50px; border:0; border-radius:14px; background:var(--text); color:var(--bg);
              font-size:16px; font-weight:700; cursor:pointer; }
@@ -149,7 +149,7 @@
     color:inherit; text-decoration:none; animation:pop .25s ease both; transition:transform .1s;
   }
   .card:active { transform:scale(.985); }
-  .card:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .card:focus-visible { outline:2px solid var(--text); outline-offset:2px; }
   .card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c, var(--muted)); }
   .card.expired { opacity:.5; }
   @keyframes pop { from { opacity:0; transform:translateY(6px); } }
@@ -218,8 +218,10 @@
   .tab { position:relative; flex:1; max-width:220px; border:0; background:transparent; border-radius:12px; cursor:pointer;
          display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0 4px;
          font-size:11.5px; font-weight:650; color:var(--muted); }
-  .tab[aria-selected="true"] { color:var(--accent); }
-  .tab .cnt { position:absolute; top:1px; left:calc(50% + 7px); min-width:18px; height:18px; padding:0 5px; border-radius:9px;
+  .tab[aria-selected="true"] { color:var(--text); }
+  .tab svg { width:56px; height:30px; padding:3px 16px; border-radius:15px; transition:background .15s; box-sizing:border-box; }
+  .tab[aria-selected="true"] svg { background:var(--surface-2); }
+  .tab .cnt { position:absolute; top:0; left:calc(50% + 9px); min-width:18px; height:18px; padding:0 5px; border-radius:9px;
               background:var(--accent); color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center;
               font-variant-numeric:tabular-nums; box-shadow:0 0 0 2px var(--surface); }
   .tab .cnt.bump { animation:bump .35s ease; }
@@ -234,17 +236,36 @@
           display:grid; place-items:center; border:1px solid var(--line); background:var(--surface); color:var(--text);
           transition:background .15s, color .15s, border-color .15s; }
   .slot:active { transform:scale(.92); }
-  .slot.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .slot.on { background:var(--text); border-color:var(--text); color:var(--bg); }
   .slot.rm { border-color:transparent; background:transparent; color:var(--muted); }
 
   /* ---------- Krepšelis ---------- */
-  .cardbox.b .card { padding-left:58px; }
-  .check { position:absolute; left:16px; top:50%; transform:translateY(-50%); width:30px; height:30px; border-radius:50%;
-           border:2px solid var(--line); background:var(--surface); cursor:pointer; display:grid; place-items:center; color:transparent;
-           transition:background .15s, border-color .15s; padding:0; }
-  .check[aria-checked="true"] { background:var(--good); border-color:var(--good); color:#fff; }
-  .cardbox.done .card { opacity:.5; }
-  .cardbox.done .name { text-decoration:line-through; }
+  .bcard { background:var(--surface); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
+  .brow { position:relative; display:flex; align-items:center; padding-right:4px; border-top:1px solid var(--line); }
+  .brow:first-child { border-top:0; }
+  .brow::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c); }
+  .brow .wlink { padding-left:2px; }
+  .check { width:52px; align-self:stretch; flex-shrink:0; border:0; background:transparent; padding:0; cursor:pointer;
+           display:grid; place-items:center; }
+  .check i { width:28px; height:28px; border-radius:50%; border:2px solid var(--muted); display:grid; place-items:center;
+             color:transparent; transition:background .15s, border-color .15s; }
+  .check[aria-checked="true"] i { background:var(--good); border-color:var(--good); color:#fff; }
+  .brow.done .wn { text-decoration:line-through; color:var(--muted); }
+  .brow.done .wp, .brow.done .badge { opacity:.5; }
+  .brow.done::before { opacity:.35; }
+  .bcard.done { box-shadow:none; background:transparent; border:1px solid var(--line); }
+  .donebtn { display:flex; justify-content:space-between; width:100%; margin:22px 0 8px; padding:6px 2px; border:0;
+             background:transparent; font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+             color:var(--muted); cursor:pointer; }
+  .gone { font-size:12px; font-weight:700; color:var(--warn); white-space:nowrap; }
+  .toast { position:fixed; z-index:30; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 76px); max-width:480px;
+           margin:0 auto; display:flex; align-items:center; gap:12px; padding:10px 8px 10px 16px; border-radius:14px;
+           background:var(--text); color:var(--bg); font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  .toast.in { animation:tin .2s ease; }
+  @keyframes tin { from { opacity:0; transform:translateY(8px); } }
+  .toast .tmsg { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .toast button { flex-shrink:0; border:0; background:transparent; color:inherit; font-weight:800; font-size:14px;
+                  padding:8px 10px; border-radius:10px; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
   .sum { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; margin:6px 0 4px; }
   .sum .row { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
   .sum .total { font-size:28px; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
@@ -257,17 +278,16 @@
   .blist { display:grid; gap:8px; }
   @media (min-width:700px) { .blist { grid-template-columns:1fr 1fr; } }
   .bactions { display:flex; gap:8px; justify-content:center; margin:22px 0 0; flex-wrap:wrap; }
-  .gone { font-size:12px; font-weight:700; color:var(--warn); }
 
   /* ---------- Stebimos prekės ---------- */
   body.v-watch header { display:none; }
   #status { display:flex; align-items:center; gap:8px; }
-  .wbtn { margin-left:auto; border:0; background:transparent; color:var(--accent); font-size:13px; font-weight:700;
+  .wbtn { margin-left:auto; border:0; background:transparent; color:var(--text); font-size:13px; font-weight:700;
           padding:6px 2px; cursor:pointer; white-space:nowrap; }
   .wadd { display:flex; gap:8px; margin:6px 0 6px; }
   .wadd input { flex:1; min-width:0; height:50px; padding:0 16px; font-size:17px; border:1px solid var(--line); border-radius:15px;
                 background:var(--surface); color:var(--text); box-shadow:var(--shadow); -webkit-appearance:none; appearance:none; }
-  .wadd input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .wadd input:focus { outline:none; border-color:var(--muted); box-shadow:0 0 0 4px color-mix(in srgb, var(--text) 12%, transparent); }
   .wsum { color:var(--muted); font-size:13px; margin:8px 4px 10px; }
   .wlist { display:grid; gap:10px; align-items:start; }
   @media (min-width:700px) { .wlist { grid-template-columns:1fr 1fr; } }
@@ -297,7 +317,7 @@
   .wcart { position:static; width:34px; height:34px; flex-shrink:0; }
   .wcart svg { width:19px; height:19px; }
   .wmore { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left;
-           padding:11px 14px; font-size:14px; font-weight:650; color:var(--accent); cursor:pointer; }
+           padding:11px 14px; font-size:14px; font-weight:650; color:var(--text); cursor:pointer; }
   .wnone { padding:0 14px 12px; margin-top:-6px; font-size:13px; color:var(--muted); }
 
   /* ---------- Kur apsipirkti ---------- */
@@ -305,9 +325,18 @@
          border:1.5px solid color-mix(in srgb, var(--c) 45%, transparent); }
   .rec-l { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
   .rec-main { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; margin:4px 0 2px; }
-  .rec-main .store { font-size:22px; letter-spacing:-.01em; text-transform:none; }
+  .rec.closed { padding-bottom:12px; }
+  .rec-head { display:flex; align-items:center; gap:10px; width:100%; border:0; background:transparent; padding:0; margin:0;
+              text-align:left; color:inherit; font:inherit; cursor:pointer; }
+  .rec-ht { flex:1; min-width:0; }
+  .rec-head .chev { flex-shrink:0; width:32px; height:32px; border-radius:10px; background:var(--surface-2); display:grid;
+                    place-items:center; font-size:13px; color:var(--text); }
+  .rec-main .dist { font-size:13.5px; font-weight:650; color:var(--text); white-space:nowrap; }
+  .rec-main .store { font-size:19px; letter-spacing:-.01em; text-transform:none; }
   .rec-main .store .dot { width:10px; height:10px; }
-  .rec-main .cov { font-weight:700; font-size:15px; }
+  .rec-main .cov { font-weight:700; font-size:14.5px; }
+  .rec-main .save { font-size:13.5px; }
+  .rec .rec-sub:first-of-type { margin-top:8px; }
   .rec-sub { color:var(--muted); font-size:13px; line-height:1.45; }
   .rec-sub b { color:var(--text); font-weight:600; }
   .near { display:flex; align-items:center; gap:10px; margin-top:10px; padding:10px 12px; border-radius:12px; background:var(--surface-2);
@@ -315,12 +344,12 @@
   .near .pin { font-size:18px; flex-shrink:0; }
   .near .ni { flex:1; min-width:0; }
   .near .ni small { display:block; color:var(--muted); font-size:12.5px; }
-  .near .go { flex-shrink:0; font-weight:700; color:var(--accent); font-size:14px; }
+  .near .go { flex-shrink:0; font-weight:700; color:var(--text); font-size:14px; }
   .near.small { background:transparent; border:1px dashed var(--line); padding:7px 12px; margin-top:6px; font-size:12.5px; color:var(--muted); }
   button.near { width:100%; border:0; cursor:pointer; text-align:left; font:inherit; }
   .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:14px; }
   .rec-combo b { font-weight:700; }
-  .rec-more { display:block; width:100%; margin-top:10px; border:0; background:transparent; color:var(--accent); font-size:14px;
+  .rec-more { display:block; width:100%; margin-top:10px; border:0; background:transparent; color:var(--text); font-size:14px;
               font-weight:650; text-align:left; padding:4px 0; cursor:pointer; }
   .cmp { margin-top:6px; display:grid; gap:2px; }
   .cmp-row { padding:10px 0; border-top:1px solid var(--line); }
@@ -329,7 +358,7 @@
   .cmp-row .cn { margin-left:auto; font-weight:700; color:var(--text); font-size:13px; }
   .cmp-row .near { margin-top:6px; padding:8px 10px; font-size:13px; }
   .osm { color:var(--muted); font-size:11px; margin-top:8px; }
-  .near-mini { color:var(--accent); font-weight:650; font-size:12.5px; text-decoration:none; white-space:nowrap; border:0;
+  .near-mini { color:var(--text); font-weight:650; font-size:12.5px; text-decoration:none; white-space:nowrap; border:0;
                background:transparent; padding:4px 2px; cursor:pointer; }
 </style>
 </head>
@@ -370,6 +399,8 @@
     <div id="basketView" hidden></div>
   </div>
 </main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <nav class="tabbar" role="tablist" aria-label="Skiltys">
   <button class="tab" role="tab" data-view="list" type="button">
@@ -717,13 +748,28 @@ function listCard(r) {
 
 const sumP = list => list.reduce((a, b) => a + (b.it.p ?? 0), 0);
 const sumSave = list => list.reduce((a, b) => a + (b.it.o > b.it.p ? b.it.o - b.it.p : 0), 0);
-let confirmClear = false;
 const ICON = {
   add: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 6.5"/><circle cx="9.5" cy="20.5" r="1.2"/><circle cx="16.5" cy="20.5" r="1.2"/><path d="M13.5 6.5v6M10.5 9.5h6" stroke-width="2.3"/></svg>',
   inb: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 6.5"/><circle cx="9.5" cy="20.5" r="1.2"/><circle cx="16.5" cy="20.5" r="1.2"/><path d="m10.5 9.8 2.2 2.2 4-4.3" stroke-width="2.4"/></svg>',
   rm: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
 };
 
+let doneOpen = false;
+/* ---------- Pranešimas „… · Atšaukti“: šalinama iš karto, bet 5 s galima atšaukti ---------- */
+let toastTimer;
+function toast(msg, undo) {
+  const t = $('toast');
+  clearTimeout(toastTimer);
+  t.replaceChildren(el('span', 'tmsg', msg));
+  if (undo) {
+    const b = el('button', null, 'Atšaukti'); b.type = 'button';
+    b.onclick = () => { clearTimeout(toastTimer); t.hidden = true; undo(); };
+    t.append(b);
+  }
+  t.hidden = false;
+  t.classList.remove('in'); void t.offsetWidth; t.classList.add('in');
+  toastTimer = setTimeout(() => { t.hidden = true; }, 5000);
+}
 function renderBasket() {
   const v = $('basketView');
   v.replaceChildren();
@@ -751,61 +797,96 @@ function renderBasket() {
   sum.append(row, bar, el('div', 'lbl', `${done.length} iš ${n} nupirkta` + (noPrice ? ` · ${noPrice} be kainos (neįskaičiuota)` : '')));
   v.append(sum);
 
-  // grupės pagal parduotuvę: perkant einama iš vienos į kitą; nenupirktos viršuje
+  // nenupirktos – pagal parduotuvę (perkant einama iš vienos į kitą); nupirktos – suskleistos apačioje
   const keys = [...Object.keys(CHAINS), ...new Set(BASKET.map(b => b.it.c).filter(c => !(c in CHAINS)))];
   for (const c of keys) {
-    const items = BASKET.filter(b => b.it.c === c).sort((a, b) => a.done - b.done || a.at - b.at);
+    const items = left.filter(b => b.it.c === c).sort((a, b) => a.at - b.at);
     if (!items.length) continue;
     const g = el('div', 'grp');
     const s = el('span', 'store'); s.style.setProperty('--c', chainColor(c)); s.append(el('span', 'dot'), CHAINS[c] || c);
-    const gl = items.filter(b => !b.done);
     g.append(s, `${items.length} ${prekes(items.length)}`);
     if (STORES && LOC) {
-      const n = nearest(c);
-      if (n && n.big) {
-        const a = el('a', 'near-mini', '📍 ' + fmtKm(n.big.d)); a.href = mapsUrl(n.big.s); a.target = '_blank'; a.rel = 'noopener';
-        a.title = n.big.s.n + (n.big.s.a ? ', ' + n.big.s.a : '') + ' – atidaryti žemėlapyje';
+      const nr = nearest(c);
+      if (nr && nr.big) {
+        const a = el('a', 'near-mini', '📍 ' + fmtKm(nr.big.d)); a.href = mapsUrl(nr.big.s); a.target = '_blank'; a.rel = 'noopener';
+        a.title = nr.big.s.n + (nr.big.s.a ? ', ' + nr.big.s.a : '') + ' – atidaryti žemėlapyje';
         g.append(a);
       }
-    } else if (STORES && gl.length) {
+    } else if (STORES) {
       const b = el('button', 'near-mini', '📍 artimiausia'); b.type = 'button';
       b.onclick = async () => { b.textContent = 'Nustatoma…'; await locate(); if (!LOC) b.textContent = '📍 nepavyko'; else renderBasket(); };
       g.append(b);
     }
-    g.append(el('span', 'gsum', gl.length ? eur(sumP(gl)) + ' €' : '✓'));
-    const list = el('div', 'blist');
-    list.append(...items.map(basketCard));
+    g.append(el('span', 'gsum', eur(sumP(items)) + ' €'));
+    const list = el('div', 'bcard');
+    list.append(...items.map(basketRow));
     v.append(g, list);
+  }
+
+  if (done.length) {
+    const open = doneOpen || !left.length;
+    const t = el('button', 'donebtn'); t.type = 'button'; t.setAttribute('aria-expanded', String(open));
+    t.append(`Nupirkta (${done.length})`, el('span', null, open ? '▴' : '▾'));
+    t.onclick = () => { doneOpen = !doneOpen; renderBasket(); };
+    v.append(t);
+    if (open) {
+      const list = el('div', 'bcard done');
+      list.append(...done.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).map(basketRow));
+      v.append(list);
+    }
   }
 
   const act = el('div', 'bactions');
   if (done.length) {
     const b = el('button', 'chip', `Pašalinti nupirktas (${done.length})`); b.type = 'button';
-    b.onclick = () => { BASKET = BASKET.filter(x => !x.done); saveBasket(); renderBasket(); };
+    b.onclick = () => {
+      const prev = BASKET.slice();
+      BASKET = BASKET.filter(x => !x.done); saveBasket(); renderBasket();
+      toast(`Pašalinta ${done.length} ${prekes(done.length)}`, () => { BASKET = prev; saveBasket(); renderBasket(); });
+    };
     act.append(b);
   }
-  const clr = el('button', 'chip', confirmClear ? 'Tikrai išvalyti viską?' : 'Išvalyti krepšelį'); clr.type = 'button';
-  if (confirmClear) clr.style.color = 'var(--accent)';
+  const clr = el('button', 'chip', 'Išvalyti krepšelį'); clr.type = 'button';
   clr.onclick = () => {
-    if (confirmClear) { BASKET = []; saveBasket(); }
-    confirmClear = !confirmClear; renderBasket();
+    const prev = BASKET.slice();
+    BASKET = []; saveBasket(); renderBasket();
+    toast('Krepšelis išvalytas', () => { BASKET = prev; saveBasket(); renderBasket(); });
   };
   act.append(clr);
   v.append(act);
 }
 
-function basketCard(b) {
-  const box = el('div', 'cardbox b' + (b.done ? ' done' : ''));
+// krepšelio eilutė: didelis žymėjimas kairėje (lengva pataikyti nykščiu), pavadinimas atidaro leidinį, × – pašalinti
+function basketRow(b) {
+  const it = b.it, t = today();
+  const r = el('div', 'brow' + (b.done ? ' done' : ''));
+  r.style.setProperty('--c', chainColor(it.c));
   const ch = el('button', 'check'); ch.type = 'button';
   ch.setAttribute('role', 'checkbox'); ch.setAttribute('aria-checked', String(b.done));
-  ch.setAttribute('aria-label', 'Nupirkta: ' + b.it.n);
-  ch.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
-  ch.onclick = () => { b.done = !b.done; confirmClear = false; saveBasket(); renderBasket(); };
-  const rm = el('button', 'slot rm'); rm.type = 'button'; rm.innerHTML = ICON.rm; rm.title = 'Pašalinti';
-  rm.setAttribute('aria-label', 'Pašalinti iš krepšelio: ' + b.it.n);
-  rm.onclick = () => { BASKET = BASKET.filter(x => x !== b); saveBasket(); renderBasket(); };
-  box.append(card(b.it, true), ch, rm);
-  return box;
+  ch.setAttribute('aria-label', 'Nupirkta: ' + it.n);
+  ch.innerHTML = '<i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></i>';
+  ch.onclick = () => { b.done = !b.done; b.doneAt = b.done ? Date.now() : 0; saveBasket(); renderBasket(); };
+  const a = el(it.l ? 'a' : 'div', 'wlink');
+  if (it.l) { a.href = it.l; a.target = '_blank'; a.rel = 'noopener'; }
+  const info = el('div', 'wi'), sub = el('div', 'wsub');
+  const bits = [it.q, it.k].filter(Boolean).join(' · ');
+  sub.append(el('span', null, bits || (CHAINS[it.c] || it.c)));
+  if (it.t && it.t < t) sub.append(el('span', 'gone', 'baigėsi ' + fmtDate(it.t)));
+  else if (it.t && !b.done && daysLeft(it.t) <= 1) sub.append(el('span', 'gone', daysLeft(it.t) ? 'baigiasi rytoj' : 'baigiasi šiandien'));
+  info.append(el('div', 'wn', it.n), sub);
+  const pr = el('div', 'wpr');
+  pr.append(el('span', 'wp', it.p != null ? eur(it.p) + ' €' : (it.d ? '' : '—')));
+  if (it.d) pr.append(el('span', 'badge', '−' + it.d + '%'));
+  a.append(info, pr);
+  const x = el('button', 'wx'); x.type = 'button'; x.innerHTML = ICON.rm;
+  x.setAttribute('aria-label', 'Pašalinti iš krepšelio: ' + it.n);
+  x.onclick = () => {
+    const prev = BASKET.slice();
+    BASKET = BASKET.filter(o => o !== b); saveBasket(); renderBasket();
+    toast('Pašalinta: ' + it.n, () => { BASKET = prev; saveBasket(); renderBasket(); });
+  };
+  r.append(ch, a, x);
+  return r;
 }
 
 /* ---------- Stebimos prekės: žodžiai, pagal kuriuos ieškoma akcijų (IndexedDB, raktas 'watch') ----------
@@ -939,7 +1020,11 @@ function renderWatch() {
     h.append(m);
     const x = el('button', 'wx'); x.type = 'button'; x.setAttribute('aria-label', 'Nebestebėti: ' + w.q);
     x.innerHTML = ICON.rm;
-    x.onclick = () => { removeWatch(w.q); renderWatch(); };
+    x.onclick = () => {
+      const prev = WATCH.slice();
+      removeWatch(w.q); renderWatch();
+      toast(`Nebestebima: ${w.q}`, () => { WATCH = prev; saveWatch(); if (state.view === 'watch') renderWatch(); });
+    };
     h.append(x);
     g.append(h);
     if (!hits.length) g.append(el('div', 'wnone', 'Akcijų šiuo metu nėra'));
@@ -1078,18 +1163,26 @@ function storeLines(c, rerender) {
   return out;
 }
 
-let cmpOpen = false;
+let cmpOpen = false, recOpen = false;
 function recCard() {
   const r = recommend();
   if (!r) return null;
   const { best, combo, chains } = r, N = WATCH.length;
   const box = el('section', 'rec'); box.style.setProperty('--c', chainColor(best.c));
-  box.append(el('div', 'rec-l', 'Šią savaitę geriausia'));
+  // suskleista – viena eilutė (kad matytųsi pačios stebimos prekės); paspaudus – visa informacija
+  const head = el('button', 'rec-head'); head.type = 'button'; head.setAttribute('aria-expanded', String(recOpen));
+  head.onclick = () => { recOpen = !recOpen; renderWatch(); };
   const main = el('div', 'rec-main');
   const st = el('span', 'store'); st.append(el('span', 'dot'), CHAINS[best.c]);
-  main.append(st, el('span', 'cov', `${best.n} iš ${N} ${plural(N, 'prekės', 'prekių', 'prekių')}`));
-  if (best.save > 0) main.append(el('span', 'save', `sutaupote ~${eur(best.save)} €`));
-  box.append(main);
+  main.append(st, el('span', 'cov', `${best.n} iš ${N}`));
+  if (best.save > 0) main.append(el('span', 'save', `~${eur(best.save)} €`));
+  const nb = LOC && STORES && nearest(best.c);
+  if (nb && nb.big) main.append(el('span', 'dist', '📍 ' + fmtKm(nb.big.d)));
+  const lbl = el('div', 'rec-l', 'Šią savaitę geriausia');
+  const txt = el('div', 'rec-ht'); txt.append(lbl, main);
+  head.append(txt, el('span', 'chev', recOpen ? '▴' : '▾'));
+  box.append(head);
+  if (!recOpen) { box.classList.add('closed'); return box; }
   const sub = el('div', 'rec-sub');
   sub.append('Su akcija: ', el('b', null, [...best.pick.keys()].join(', ')));
   const miss = WATCH.map(w => w.q).filter(q => !best.pick.has(q));
@@ -1141,7 +1234,6 @@ async function setView(v) {
   statusEl.hidden = resultsEl.hidden = pagerEl.hidden = v !== 'list';
   $('basketView').hidden = v !== 'basket';
   $('watchView').hidden = v !== 'watch';
-  confirmClear = false;
   if (v === 'list' || !DATA) await load();   // pirmą kartą užkrauna duomenis, krepšelį ir stebimas
   if (v === 'basket') { syncUrl(); renderBasket(); refreshLoc(() => state.view === 'basket' && renderBasket()); }
   if (v === 'watch') { syncUrl(); if (DATA) { markWatchSeen(); renderWatch(); refreshLoc(() => state.view === 'watch' && renderWatch()); } }
