@@ -258,6 +258,47 @@
   @media (min-width:700px) { .blist { grid-template-columns:1fr 1fr; } }
   .bactions { display:flex; gap:8px; justify-content:center; margin:22px 0 0; flex-wrap:wrap; }
   .gone { font-size:12px; font-weight:700; color:var(--warn); }
+
+  /* ---------- Stebimos prekės ---------- */
+  body.v-watch header { display:none; }
+  #status { display:flex; align-items:center; gap:8px; }
+  .wbtn { margin-left:auto; border:0; background:transparent; color:var(--accent); font-size:13px; font-weight:700;
+          padding:6px 2px; cursor:pointer; white-space:nowrap; }
+  .wadd { display:flex; gap:8px; margin:6px 0 6px; }
+  .wadd input { flex:1; min-width:0; height:50px; padding:0 16px; font-size:17px; border:1px solid var(--line); border-radius:15px;
+                background:var(--surface); color:var(--text); box-shadow:var(--shadow); -webkit-appearance:none; appearance:none; }
+  .wadd input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .wsum { color:var(--muted); font-size:13px; margin:8px 4px 10px; }
+  .wlist { display:grid; gap:10px; align-items:start; }
+  @media (min-width:700px) { .wlist { grid-template-columns:1fr 1fr; } }
+  .wg { background:var(--surface); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; animation:pop .25s ease both; }
+  .wg.none { background:transparent; box-shadow:none; border:1px dashed var(--line); }
+  .wh { display:flex; align-items:center; gap:8px; padding:8px 6px 8px 14px; min-height:48px; }
+  .wh h3 { margin:0; font-size:16px; font-weight:750; letter-spacing:-.01em; overflow-wrap:anywhere; }
+  .wg.none .wh h3 { color:var(--muted); font-weight:650; }
+  .wh .wm { margin-left:auto; color:var(--muted); font-size:12.5px; text-align:right; white-space:nowrap; }
+  .wh .wm b { color:var(--text); font-weight:700; }
+  .wx { width:36px; height:36px; flex-shrink:0; border:0; border-radius:10px; background:transparent; color:var(--muted);
+        display:grid; place-items:center; cursor:pointer; }
+  .wx:hover { background:var(--surface-2); }
+  .new { font-size:11px; font-weight:800; color:var(--good); background:color-mix(in srgb, var(--good) 14%, transparent);
+         padding:2px 6px; border-radius:6px; white-space:nowrap; }
+  .wrow { display:flex; align-items:center; gap:4px; border-top:1px solid var(--line); padding-right:8px; }
+  .wlink { flex:1; min-width:0; display:flex; align-items:center; gap:8px; padding:9px 4px 9px 14px; color:inherit; text-decoration:none; }
+  .wlink .dot { width:8px; height:8px; border-radius:50%; background:var(--c); flex-shrink:0; }
+  .wi { flex:1; min-width:0; }
+  .wn { font-size:14px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+        overflow-wrap:anywhere; }
+  .wsub { display:flex; align-items:center; gap:6px; margin-top:2px; color:var(--muted); font-size:12px; min-width:0; }
+  .wsub span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wpr { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
+  .wp { font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.02em; line-height:1; }
+  .wpr .badge { font-size:11px; padding:1px 5px; }
+  .wcart { position:static; width:34px; height:34px; flex-shrink:0; }
+  .wcart svg { width:19px; height:19px; }
+  .wmore { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left;
+           padding:11px 14px; font-size:14px; font-weight:650; color:var(--accent); cursor:pointer; }
+  .wnone { padding:0 14px 12px; margin-top:-6px; font-size:13px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -293,6 +334,7 @@
     <div id="status" aria-live="polite"></div>
     <div id="results"></div>
     <nav class="pager" id="pager" aria-label="Puslapiai"></nav>
+    <div id="watchView" hidden></div>
     <div id="basketView" hidden></div>
   </div>
 </main>
@@ -301,6 +343,11 @@
   <button class="tab" role="tab" data-view="list" type="button">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
     Akcijos
+  </button>
+  <button class="tab" role="tab" data-view="watch" type="button">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.6 6.2.9-4.5 4.4 1 6.1-5.5-2.9-5.5 2.9 1-6.1L3 9.5l6.2-.9Z"/></svg>
+    Stebimos
+    <span class="cnt" id="watchCount" hidden></span>
   </button>
   <button class="tab" role="tab" data-view="basket" type="button">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20.5" r="1.2"/><circle cx="17" cy="20.5" r="1.2"/></svg>
@@ -352,7 +399,7 @@ const state = {
   sort: params.get('sort') === 'discount' ? 'discount' : 'price',
   page: Math.max(1, parseInt(params.get('page')) || 1),
   all: params.get('all') === '1',
-  view: params.get('view') === 'krepselis' ? 'basket' : 'list',
+  view: { krepselis: 'basket', stebimos: 'watch' }[params.get('view')] || 'list',
 };
 let timer, lastCounts = null;
 const PER_PAGE = 24;   // dalijasi iš 2 ir 3: lygios eilės telefone ir kompiuteryje
@@ -473,15 +520,20 @@ async function loadData() {
   $('updated').textContent = g ? 'atnaujinta ' + fmtDate(g.slice(0, 10)) : '';
 }
 
+// ta pati paieška naudojama sąraše ir stebimose prekėse
+function matchItems(items, text) {
+  const raw = normalize(text).split(' ').filter(Boolean), toks = raw.map(stem);
+  if (!toks.length) { for (const it of items) it.x = 0; return items; }
+  // žodis tinka, jei jo kamienas sutampa („sūrio" ~ „sūris") arba jis prasideda įvestu tekstu („šokol")
+  items = items.filter(it => raw.every((r, i) => it.w.some((w, j) => w.startsWith(r) || it.st[j] === toks[i])));
+  // pirmiau prekės, kurių žodžiai atitinka tiksliai („mėsa" ~ „mėsos"), po jų tik pagal pradžią („mėsainis")
+  for (const it of items) it.x = toks.every(s => it.st.includes(s)) ? 0 : 1;
+  return items;
+}
+
 function browse() {
-  const raw = normalize(state.q).split(' ').filter(Boolean), toks = raw.map(stem), t = today();
-  let items = DATA.items.filter(it => state.all || !it.t || it.t >= t);
-  if (toks.length) {
-    // žodis tinka, jei jo kamienas sutampa („sūrio" ~ „sūris") arba jis prasideda įvestu tekstu („šokol")
-    items = items.filter(it => raw.every((r, i) => it.w.some((w, j) => w.startsWith(r) || it.st[j] === toks[i])));
-    // pirmiau prekės, kurių žodžiai atitinka tiksliai („mėsa" ~ „mėsos"), po jų tik pagal pradžią („mėsainis")
-    for (const it of items) it.x = toks.every(s => it.st.includes(s)) ? 0 : 1;
-  } else for (const it of items) it.x = 0;
+  const t = today();
+  let items = matchItems(DATA.items.filter(it => state.all || !it.t || it.t >= t), state.q);
   const counts = {};
   for (const it of items) counts[it.c] = (counts[it.c] || 0) + 1;
   if (state.chain) items = items.filter(it => it.c === state.chain);
@@ -711,17 +763,179 @@ function basketCard(b) {
   return box;
 }
 
+/* ---------- Stebimos prekės: žodžiai, pagal kuriuos ieškoma akcijų (IndexedDB, raktas 'watch') ----------
+   seen – akcijos, kurias naudotojas jau matė; kitos pažymimos „nauja“. */
+let WATCH = [];      // [{ q, at, seen: [id] }]
+let NEWNOW = null;   // per šį apsilankymą skiltyje rodomos naujos akcijos: Map(q -> Set(id))
+const plural = (n, one, few, many) => { const d = n % 10, t = n % 100;
+  return d === 1 && t !== 11 ? one : d >= 2 && (t < 10 || t > 20) ? few : many; };
+const akcijos = n => `${n} ${plural(n, 'akcija', 'akcijos', 'akcijų')}`;
+const naujos = n => `${n} ${plural(n, 'nauja', 'naujos', 'naujų')}`;
+const watchKey = q => normalize(q);
+const findWatch = q => WATCH.find(w => watchKey(w.q) === watchKey(q));
+function watchHits(w) {
+  const t = today(), words = normalize(w.q).split(' ');
+  const hits = matchItems(DATA.items.filter(it => !it.t || it.t >= t), w.q);
+  // pirmiau prekės, kuriose žodis yra toks pat, kaip įvestas („pienas“), po jų kitos formos
+  // („kondensuoto pieno“ desertas, „prie kavos“ sausainiai); kiekvienoje grupėje – pigiausios pirmos
+  for (const it of hits) it.y = words.every(x => it.w.includes(x)) ? 0 : 1;
+  return hits.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+}
+async function loadWatch() {
+  const saved = await kv.get('watch');
+  WATCH = Array.isArray(saved) ? saved : [];
+  updateWatchCount();
+}
+function saveWatch() { kv.put('watch', WATCH); updateWatchCount(); }
+function updateWatchCount() {
+  // skaičius prie skilties: kiek stebimų prekių turi naujų akcijų
+  const n = WATCH.filter(w => watchHits(w).some(it => !w.seen.includes(itemId(it)))).length, c = $('watchCount');
+  c.hidden = !n; c.textContent = n;
+}
+function addWatch(q) {
+  q = q.trim().replace(/\s+/g, ' ');
+  if (!watchKey(q) || findWatch(q)) return false;
+  const w = { q, at: Date.now(), seen: [] };
+  w.seen = watchHits(w).map(itemId);   // esamos akcijos nėra „naujos“
+  WATCH.push(w);
+  saveWatch();
+  return true;
+}
+function removeWatch(q) { WATCH = WATCH.filter(w => watchKey(w.q) !== watchKey(q)); saveWatch(); }
+function watchToggle(q, cls) {
+  const on = !!findWatch(q);
+  const b = el('button', cls, on ? '★ Stebima' : `☆ Stebėti „${q}“`);
+  if (cls === 'wbtn') b.textContent = on ? '★ Stebima' : '☆ Stebėti';
+  b.type = 'button';
+  b.title = on ? 'Paspauskite, kad nebestebėtumėte' : 'Rodyti šios prekės akcijas skiltyje „Stebimos“';
+  b.onclick = () => { on ? removeWatch(q) : addWatch(q); load(); };
+  return b;
+}
+
+function watchRow(it, isNew) {
+  const r = el('div', 'wrow');
+  r.style.setProperty('--c', chainColor(it.c));
+  const a = el(it.l ? 'a' : 'div', 'wlink');
+  if (it.l) { a.href = it.l; a.target = '_blank'; a.rel = 'noopener'; }
+  const info = el('div', 'wi'), sub = el('div', 'wsub');
+  sub.append(el('span', null, [CHAINS[it.c] || it.c, it.q, it.k].filter(Boolean).join(' · ')));
+  if (isNew) sub.append(el('span', 'new', 'nauja'));
+  info.append(el('div', 'wn', it.n), sub);
+  const pr = el('div', 'wpr');
+  pr.append(el('span', 'wp', it.p != null ? eur(it.p) + ' €' : (it.d ? '' : '—')));
+  if (it.d) pr.append(el('span', 'badge', '−' + it.d + '%'));
+  a.append(el('span', 'dot'), info, pr);
+  const b = el('button', 'slot wcart'); b.type = 'button';
+  const paint = () => {
+    const on = inBasket(it);
+    b.classList.toggle('on', on); b.innerHTML = on ? ICON.inb : ICON.add;
+    b.setAttribute('aria-label', (on ? 'Išimti iš krepšelio: ' : 'Įdėti į krepšelį: ') + it.n);
+  };
+  b.onclick = () => { toggleBasket(it); paint(); };
+  paint();
+  r.append(a, b);
+  return r;
+}
+
+const SUGGEST = ['pienas', 'kiaušiniai', 'sviestas', 'kava', 'bananai', 'sūris'];
+function renderWatch() {
+  const v = $('watchView');
+  v.replaceChildren();
+  const form = el('form', 'wadd');
+  const inp = el('input'); inp.type = 'text'; inp.placeholder = 'Pridėti prekę, pvz. sūris';
+  inp.enterKeyHint = 'done'; inp.autocomplete = 'off'; inp.setAttribute('aria-label', 'Stebima prekė');
+  const add = el('button', 'iconbtn'); add.type = 'submit'; add.setAttribute('aria-label', 'Pridėti');
+  add.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  form.append(inp, add);
+  form.onsubmit = e => {
+    e.preventDefault();
+    if (addWatch(inp.value)) { renderWatch(); $('watchView').querySelector('.wadd input').focus(); }
+    else if (inp.value.trim()) { inp.select(); }
+  };
+  v.append(form);
+
+  if (!WATCH.length) {
+    const box = el('div', 'empty');
+    box.append(el('div', 'big', '⭐'), el('h2', null, 'Stebėkite savo prekes'),
+      el('p', null, 'Įrašykite prekes, kurias perkate dažnai, ir čia matysite visas jų akcijas. Paieškoje tą patį daro mygtukas „☆ Stebėti“.'));
+    const sg = el('div', 'sugg');
+    for (const q of SUGGEST) {
+      const b = el('button', 'chip', '+ ' + q); b.type = 'button';
+      b.onclick = () => { addWatch(q); renderWatch(); };
+      sg.append(b);
+    }
+    box.append(sg);
+    v.append(box);
+    return;
+  }
+
+  // prekės su akcijomis viršuje (pridėjimo tvarka), be akcijų – apačioje
+  const groups = WATCH.map(w => ({ w, hits: watchHits(w) }));
+  groups.sort((a, b) => (!a.hits.length) - (!b.hits.length) || a.w.at - b.w.at);
+  const withHits = groups.filter(g => g.hits.length).length;
+  v.append(el('div', 'wsum', `${withHits} iš ${WATCH.length} ${plural(WATCH.length, 'prekės', 'prekių', 'prekių')} turi akcijų`));
+
+  const list = el('div', 'wlist');
+  for (const { w, hits } of groups) {
+    const fresh = (NEWNOW && NEWNOW.get(watchKey(w.q))) || new Set();
+    const g = el('section', 'wg' + (hits.length ? '' : ' none'));
+    const h = el('div', 'wh');
+    h.append(el('h3', null, w.q.charAt(0).toUpperCase() + w.q.slice(1)));
+    const nNew = hits.filter(it => fresh.has(itemId(it))).length;
+    if (nNew) h.append(el('span', 'new', naujos(nNew)));
+    const m = el('span', 'wm');
+    if (hits.length) {
+      const best = hits.some(it => !it.y) ? hits.filter(it => !it.y) : hits;   // „nuo“ – iš tiksliai atitinkančių
+      const prices = best.map(it => it.p).filter(p => p != null);
+      m.append(akcijos(hits.length));
+      if (prices.length) { m.append(' · nuo '); m.append(el('b', null, eur(Math.min(...prices)) + ' €')); }
+    }
+    h.append(m);
+    const x = el('button', 'wx'); x.type = 'button'; x.setAttribute('aria-label', 'Nebestebėti: ' + w.q);
+    x.innerHTML = ICON.rm;
+    x.onclick = () => { removeWatch(w.q); renderWatch(); };
+    h.append(x);
+    g.append(h);
+    if (!hits.length) g.append(el('div', 'wnone', 'Akcijų šiuo metu nėra'));
+    // pirmiausia naujos, tada pigiausios; rodomos 3, kitos – sąraše
+    const shown = hits.slice().sort((a, b) => fresh.has(itemId(b)) - fresh.has(itemId(a))).slice(0, 3);
+    for (const it of shown) g.append(watchRow(it, fresh.has(itemId(it))));
+    if (hits.length > 3) {
+      const more = el('button', 'wmore', `Rodyti visas ${hits.length} →`); more.type = 'button';
+      more.onclick = () => { state.q = w.q; state.chain = null; state.page = 1; q.value = w.q;
+        $('searchBox').classList.add('has-text'); setView('list'); };
+      g.append(more);
+    }
+    list.append(g);
+  }
+  v.append(list);
+}
+
+// atidarius skiltį: įsimenama, kas šįkart nauja, ir tai pažymima kaip matyta
+function markWatchSeen() {
+  NEWNOW = new Map();
+  for (const w of WATCH) {
+    const ids = watchHits(w).map(itemId);
+    NEWNOW.set(watchKey(w.q), new Set(ids.filter(id => !w.seen.includes(id))));
+    w.seen = ids;
+  }
+  saveWatch();
+}
+
+const TITLES = { list: 'Akcijos', watch: 'Stebimos', basket: 'Krepšelis' };
 async function setView(v) {
   state.view = v;
-  const isB = v === 'basket';
-  document.body.classList.toggle('v-basket', isB);
-  document.querySelector('.brand h1').textContent = isB ? 'Krepšelis' : 'Akcijos';
+  document.body.classList.toggle('v-basket', v === 'basket');
+  document.body.classList.toggle('v-watch', v === 'watch');
+  document.querySelector('.brand h1').textContent = TITLES[v];
   for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.view === v));
-  statusEl.hidden = resultsEl.hidden = pagerEl.hidden = isB;
-  $('basketView').hidden = !isB;
+  statusEl.hidden = resultsEl.hidden = pagerEl.hidden = v !== 'list';
+  $('basketView').hidden = v !== 'basket';
+  $('watchView').hidden = v !== 'watch';
   confirmClear = false;
-  if (!isB || !DATA) await load();   // pirmą kartą užkrauna duomenis ir krepšelį
-  if (isB) { syncUrl(); renderBasket(); }
+  if (v === 'list' || !DATA) await load();   // pirmą kartą užkrauna duomenis, krepšelį ir stebimas
+  if (v === 'basket') { syncUrl(); renderBasket(); }
+  if (v === 'watch') { syncUrl(); if (DATA) { markWatchSeen(); renderWatch(); } }
   window.scrollTo(0, 0);
 }
 
@@ -767,7 +981,7 @@ function syncUrl() {
   if (state.sort !== 'price') p.set('sort', state.sort);
   if (state.all) p.set('all', '1');
   if (state.page > 1) p.set('page', state.page);
-  if (state.view === 'basket') p.set('view', 'krepselis');
+  if (state.view !== 'list') p.set('view', state.view === 'basket' ? 'krepselis' : 'stebimos');
   const qs = p.toString();
   try { history.replaceState(null, '', qs ? '?' + qs : location.pathname); } catch {}
 }
@@ -782,6 +996,7 @@ async function load() {
     try {
       await loadData();
       await loadBasket();
+      await loadWatch();
     } catch (e) {
       statusEl.textContent = '';
       const box = el('div', 'empty');
@@ -805,6 +1020,7 @@ async function load() {
     const box = el('div', 'empty');
     box.append(el('div', 'big', '🔍'), el('h2', null, 'Nieko neradome'),
       el('p', null, state.q ? `Pagal „${state.q}“ akcijų nėra. Pabandykite trumpesnį ar kitą žodį.` : 'Šiuo metu akcijų nėra.'));
+    if (state.q && !state.chain) box.append(watchToggle(state.q, 'chip'));
     if (state.chain) {
       const b = el('button', 'chip', 'Ieškoti visose parduotuvėse'); b.type = 'button';
       b.onclick = () => { state.chain = null; state.page = 1; load(); };
@@ -814,7 +1030,8 @@ async function load() {
     return;
   }
   const from = (data.page - 1) * data.per_page + 1, to = from + data.results.length - 1;
-  statusEl.textContent = `${data.total} ${prekes(data.total)}` + (data.pages > 1 ? ` · ${from}–${to}` : '');
+  statusEl.replaceChildren(`${data.total} ${prekes(data.total)}` + (data.pages > 1 ? ` · ${from}–${to}` : ''));
+  if (state.q) statusEl.append(watchToggle(state.q, 'wbtn'));
   resultsEl.replaceChildren(...data.results.map(listCard));
   renderPager(data.page, data.pages);
 }
