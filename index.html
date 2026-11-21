@@ -347,6 +347,10 @@
   .near .go { flex-shrink:0; font-weight:700; color:var(--text); font-size:14px; }
   .near.small { background:transparent; border:1px dashed var(--line); padding:7px 12px; margin-top:6px; font-size:12.5px; color:var(--muted); }
   button.near { width:100%; border:0; cursor:pointer; text-align:left; font:inherit; }
+  .near-city { display:block; width:100%; margin-top:6px; padding:9px 12px; border-radius:12px; border:1px solid var(--line);
+    background:var(--surface-2); color:inherit; font:inherit; font-size:14px; }
+  .near-change { display:inline-block; margin-top:6px; padding:2px 0; border:0; background:none; color:var(--muted);
+    font:inherit; font-size:12.5px; text-decoration:underline; cursor:pointer; }
   .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:14px; }
   .rec-combo b { font-weight:700; }
   .rec-more { display:block; width:100%; margin-top:10px; border:0; background:transparent; color:var(--text); font-size:14px;
@@ -814,7 +818,7 @@ function renderBasket() {
       }
     } else if (STORES) {
       const b = el('button', 'near-mini', '📍 artimiausia'); b.type = 'button';
-      b.onclick = async () => { b.textContent = 'Nustatoma…'; await locate(); if (!LOC) b.textContent = '📍 nepavyko'; else renderBasket(); };
+      b.onclick = async () => { b.textContent = 'Nustatoma…'; await locate(); if (!LOC) { b.textContent = '📍 nepavyko'; b.title = LOCERR; } else renderBasket(); };
       g.append(b);
     }
     g.append(el('span', 'gsum', eur(sumP(items)) + ' €'));
@@ -1095,20 +1099,47 @@ async function loadStores() {
 }
 function locate() {
   return new Promise(ok => {
+    if (!window.isSecureContext) { LOCERR = 'Vietą galima nustatyti tik atidarius svetainę per https:// adresą.'; return ok(null); }
     if (!navigator.geolocation) { LOCERR = 'Šis telefonas vietos nustatyti neleidžia.'; return ok(null); }
-    navigator.geolocation.getCurrentPosition(p => {
+    const done = p => {
       LOC = { lat: p.coords.latitude, lon: p.coords.longitude, at: Date.now() }; LOCERR = '';
       kv.put('loc', LOC); ok(LOC);
-    }, e => {
-      LOCERR = e.code === 1 ? 'Vietos naudoti neleista. Leiskite tai naršyklės nustatymuose ir bandykite dar kartą.'
-                            : 'Vietos nustatyti nepavyko. Bandykite dar kartą.';
+    };
+    // pirmiausia greitai (Wi-Fi / tinklas); nepavykus – dar kartą su GPS ir ilgesniu laukimu
+    const fail = (e, retry) => {
+      if (e.code !== 1 && retry)
+        return navigator.geolocation.getCurrentPosition(done, e2 => fail(e2, false), { enableHighAccuracy: true, timeout: 20000, maximumAge: 600000 });
+      LOCERR = e.code === 1 ? 'Vietos naudoti neleista. Leiskite tai naršyklės nustatymuose arba pasirinkite miestą.'
+             : 'Vietos nustatyti nepavyko – įjunkite vietos nustatymą (GPS) telefone arba pasirinkite miestą.';
       ok(null);
-    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
+    };
+    navigator.geolocation.getCurrentPosition(done, e => fail(e, true), { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
   });
+}
+// atsarginis būdas be vietos nustatymo: miestas iš parduotuvių adresų, vieta – jo parduotuvių vidurkis
+function cities() {
+  const m = new Map();
+  for (const s of STORES || []) {
+    const city = (s.a || '').split(',').pop().trim();
+    if (!city || /\d/.test(city)) continue;
+    const c = m.get(city) || { n: 0, lat: 0, lon: 0 }; c.n++; c.lat += s.lat; c.lon += s.lon; m.set(city, c);
+  }
+  return [...m].filter(([, c]) => c.n >= 2).map(([name, c]) => ({ name, n: c.n, lat: c.lat / c.n, lon: c.lon / c.n }))
+    .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'lt'));
+}
+function cityPicker(rerender) {
+  const sel = el('select', 'near-city'); sel.setAttribute('aria-label', 'Pasirinkti miestą');
+  sel.append(new Option('… arba pasirinkite miestą', ''));
+  for (const c of cities()) sel.append(new Option(c.name, c.name));
+  sel.onchange = () => {
+    const c = cities().find(x => x.name === sel.value); if (!c) return;
+    LOC = { lat: c.lat, lon: c.lon, at: Date.now(), city: c.name }; LOCERR = ''; kv.put('loc', LOC); rerender();
+  };
+  return sel;
 }
 // jei leidimas jau duotas ir vieta senesnė nei 10 min. – atnaujinama tyliai
 async function refreshLoc(after) {
-  if (!STORES || !LOC || Date.now() - LOC.at < 6e5) return;
+  if (!STORES || !LOC || LOC.city || Date.now() - LOC.at < 6e5) return;
   try { const st = await navigator.permissions.query({ name: 'geolocation' }); if (st.state !== 'granted') return; } catch { return; }
   if (await locate()) after();
 }
@@ -1135,7 +1166,7 @@ function nearLink(n, cls = 'near') {
   const a = el('a', cls); a.href = mapsUrl(n.s); a.target = '_blank'; a.rel = 'noopener';
   a.setAttribute('aria-label', `Atidaryti žemėlapyje: ${n.s.n}${n.s.a ? ', ' + n.s.a : ''}`);
   const i = el('span', 'ni', n.s.n + (n.s.a ? ', ' + n.s.a : ''));
-  i.append(el('small', null, fmtWalk(n.d) + (n.s.s ? ' · mažesnė parduotuvė' : '')));
+  i.append(el('small', null, (LOC && LOC.city ? `${LOC.city}, nuo centro ${fmtKm(n.d)}` : fmtWalk(n.d)) + (n.s.s ? ' · mažesnė parduotuvė' : '')));
   a.append(el('span', 'pin', '📍'), i, el('span', 'go', 'Žemėlapis ›'));
   return a;
 }
@@ -1150,6 +1181,7 @@ function storeLines(c, rerender) {
     b.append(el('span', 'pin', '📍'), i, el('span', 'go', '›'));
     b.onclick = async () => { b.disabled = true; b.querySelector('small').textContent = 'Nustatoma vieta…'; await locate(); rerender(); };
     out.push(b);
+    if (LOCERR) out.push(cityPicker(rerender));
     return out;
   }
   const n = nearest(c);
@@ -1177,7 +1209,7 @@ function recCard() {
   main.append(st, el('span', 'cov', `${best.n} iš ${N}`));
   if (best.save > 0) main.append(el('span', 'save', `~${eur(best.save)} €`));
   const nb = LOC && STORES && nearest(best.c);
-  if (nb && nb.big) main.append(el('span', 'dist', '📍 ' + fmtKm(nb.big.d)));
+  if (nb && nb.big) main.append(el('span', 'dist', '📍 ' + (LOC.city || fmtKm(nb.big.d))));
   const lbl = el('div', 'rec-l', 'Šią savaitę geriausia');
   const txt = el('div', 'rec-ht'); txt.append(lbl, main);
   head.append(txt, el('span', 'chev', recOpen ? '▴' : '▾'));
@@ -1219,6 +1251,11 @@ function recCard() {
       }
       box.append(cmp);
     }
+  }
+  if (STORES && LOC) {
+    const ch = el('button', 'near-change', LOC.city ? `Miestas: ${LOC.city} · keisti` : 'Keisti vietą'); ch.type = 'button';
+    ch.onclick = async () => { LOC = null; LOCERR = ''; await kv.put('loc'); renderWatch(); };
+    box.append(ch);
   }
   if (STORES) box.append(el('div', 'osm', 'Parduotuvių vietos: © OpenStreetMap bendraautoriai · atstumas apytikslis'));
   return box;
