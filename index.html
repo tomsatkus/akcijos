@@ -641,7 +641,7 @@ function browse() {
 }
 
 const eur = n => n.toFixed(2).replace('.', ',');
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };   // vietinė data
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -1137,8 +1137,12 @@ function markWatchSeen() {
 const byPrice = (a, b) => (a.p ?? Infinity) - (b.p ?? Infinity);
 const savingOf = it => (it && it.o > it.p ? it.o - it.p : 0);
 function recommend() {
+  // „Šią savaitę“: tik jau galiojančios akcijos; kitos savaitės („nuo 11.23“) – tik paminimos prie „Be akcijos“
+  const t0 = today(), soon = new Map();
   const terms = WATCH.map(w => {
-    const hits = watchHits(w);
+    const all = watchHits(w), hits = all.filter(h => !h.f || h.f <= t0);
+    const later = all.filter(h => h.f && h.f > t0).map(h => h.f).sort()[0];
+    if (!hits.length && later) soon.set(w.q, later);
     return { q: w.q, rel: hits.some(h => !h.y) ? hits.filter(h => !h.y) : hits };   // tik tiksliai atitinkančios
   }).filter(t => t.rel.length);
   if (!terms.length) return null;
@@ -1162,7 +1166,7 @@ function recommend() {
     if (pick.size > best.n && (!combo || pick.size > combo.n || (pick.size === combo.n && save > combo.save)))
       combo = { a: A.c, b: B.c, pick, n: pick.size, save };
   }
-  return { chains, best, combo };
+  return { chains, best, combo, soon };
 }
 
 /* ---------- Artimiausia parduotuvė: parduotuves.json (fetch/parduotuves.py, OpenStreetMap) ----------
@@ -1295,7 +1299,7 @@ function saveText(pick, save) {
 function recCard() {
   const r = recommend();
   if (!r) return null;
-  const { best, combo, chains } = r, N = WATCH.length;
+  const { best, combo, chains, soon } = r, N = WATCH.length;
   const box = el('section', 'rec'); box.style.setProperty('--c', chainColor(best.c));
   // suskleista – viena eilutė (kad matytųsi pačios stebimos prekės); paspaudus – visa informacija
   const head = el('button', 'rec-head'); head.type = 'button'; head.setAttribute('aria-expanded', String(recOpen));
@@ -1314,7 +1318,7 @@ function recCard() {
   const sub = el('div', 'rec-sub');
   sub.append('Su akcija: ', el('b', null, [...best.pick.keys()].join(', ')));
   const miss = WATCH.map(w => w.q).filter(q => !best.pick.has(q));
-  if (miss.length) sub.append(el('br'), 'Be akcijos: ' + miss.join(', '));
+  if (miss.length) sub.append(el('br'), 'Be akcijos: ' + miss.map(q => soon.has(q) ? `${q} (akcija nuo ${fmtDate(soon.get(q))})` : q).join(', '));
   box.append(sub, ...storeLines(best.c, renderWatch));
 
   if (combo) {
