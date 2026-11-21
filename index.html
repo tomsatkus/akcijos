@@ -10,7 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Akcijos">
-<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="robots" content="noindex">
@@ -207,6 +207,57 @@
           background-size:200% 100%; animation:sh 1.1s linear infinite; }
   @keyframes sh { to { background-position:-200% 0; } }
   @media (prefers-reduced-motion: reduce) { .card, .skel { animation:none; } }
+
+  /* ---------- Apatinė juosta: Akcijos / Krepšelis ---------- */
+  main { padding-bottom:calc(env(safe-area-inset-bottom) + 96px); }
+  .tabbar { position:fixed; left:0; right:0; bottom:0; z-index:20; display:flex; justify-content:center; gap:6px;
+            padding:6px 12px calc(env(safe-area-inset-bottom) + 6px); border-top:1px solid var(--line);
+            background:color-mix(in srgb, var(--surface) 88%, transparent);
+            backdrop-filter:saturate(1.6) blur(16px); -webkit-backdrop-filter:saturate(1.6) blur(16px); }
+  body.locked .tabbar { display:none; }
+  .tab { position:relative; flex:1; max-width:220px; border:0; background:transparent; border-radius:12px; cursor:pointer;
+         display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0 4px;
+         font-size:11.5px; font-weight:650; color:var(--muted); }
+  .tab[aria-selected="true"] { color:var(--accent); }
+  .tab .cnt { position:absolute; top:1px; left:calc(50% + 7px); min-width:18px; height:18px; padding:0 5px; border-radius:9px;
+              background:var(--accent); color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center;
+              font-variant-numeric:tabular-nums; box-shadow:0 0 0 2px var(--surface); }
+  .tab .cnt.bump { animation:bump .35s ease; }
+  @keyframes bump { 50% { transform:scale(1.3); } }
+  body.v-basket header { display:none; }
+
+  /* ---------- Kortelė su mygtuku krepšeliui ---------- */
+  .cardbox { position:relative; }
+  /* mygtukas yra šalia nuorodos (ne jos viduje), o kainos stulpelyje jam paliekama vieta (.slot-space) */
+  .slot-space { display:block; width:38px; height:38px; margin-top:4px; }
+  .slot { position:absolute; right:14px; bottom:12px; width:38px; height:38px; padding:0; border-radius:50%; cursor:pointer;
+          display:grid; place-items:center; border:1px solid var(--line); background:var(--surface); color:var(--text);
+          transition:background .15s, color .15s, border-color .15s; }
+  .slot:active { transform:scale(.92); }
+  .slot.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .slot.rm { border-color:transparent; background:transparent; color:var(--muted); }
+
+  /* ---------- Krepšelis ---------- */
+  .cardbox.b .card { padding-left:58px; }
+  .check { position:absolute; left:16px; top:50%; transform:translateY(-50%); width:30px; height:30px; border-radius:50%;
+           border:2px solid var(--line); background:var(--surface); cursor:pointer; display:grid; place-items:center; color:transparent;
+           transition:background .15s, border-color .15s; padding:0; }
+  .check[aria-checked="true"] { background:var(--good); border-color:var(--good); color:#fff; }
+  .cardbox.done .card { opacity:.5; }
+  .cardbox.done .name { text-decoration:line-through; }
+  .sum { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; margin:6px 0 4px; }
+  .sum .row { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .sum .total { font-size:28px; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .sum .lbl { color:var(--muted); font-size:13px; }
+  .bar { height:6px; border-radius:3px; background:var(--surface-2); margin:12px 0 6px; overflow:hidden; }
+  .bar > i { display:block; height:100%; background:var(--good); border-radius:3px; transition:width .3s; }
+  .grp { display:flex; align-items:center; gap:8px; margin:20px 2px 8px; font-size:13px; color:var(--muted); }
+  .grp .store { font-size:13px; }
+  .grp .gsum { margin-left:auto; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+  .blist { display:grid; gap:8px; }
+  @media (min-width:700px) { .blist { grid-template-columns:1fr 1fr; } }
+  .bactions { display:flex; gap:8px; justify-content:center; margin:22px 0 0; flex-wrap:wrap; }
+  .gone { font-size:12px; font-weight:700; color:var(--warn); }
 </style>
 </head>
 <body>
@@ -242,8 +293,21 @@
     <div id="status" aria-live="polite"></div>
     <div id="results"></div>
     <nav class="pager" id="pager" aria-label="Puslapiai"></nav>
+    <div id="basketView" hidden></div>
   </div>
 </main>
+
+<nav class="tabbar" role="tablist" aria-label="Skiltys">
+  <button class="tab" role="tab" data-view="list" type="button">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+    Akcijos
+  </button>
+  <button class="tab" role="tab" data-view="basket" type="button">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20.5" r="1.2"/><circle cx="17" cy="20.5" r="1.2"/></svg>
+    Krepšelis
+    <span class="cnt" id="basketCount" hidden></span>
+  </button>
+</nav>
 
 <section id="login" class="login" hidden>
   <form id="loginForm" class="login-card" autocomplete="on">
@@ -288,6 +352,7 @@ const state = {
   sort: params.get('sort') === 'discount' ? 'discount' : 'price',
   page: Math.max(1, parseInt(params.get('page')) || 1),
   all: params.get('all') === '1',
+  view: params.get('view') === 'krepselis' ? 'basket' : 'list',
 };
 let timer, lastCounts = null;
 const PER_PAGE = 24;   // dalijasi iš 2 ir 3: lygios eilės telefone ir kompiuteryje
@@ -472,7 +537,7 @@ function updateFade() {
 }
 
 /* ---------- Kortelė (visa kortelė atidaro leidinį) ---------- */
-function card(r) {
+function card(r, slot = false) {
   const t = today();
   const expired = r.t && r.t < t;
   const c = el(r.l ? 'a' : 'article', 'card' + (expired ? ' expired' : ''));
@@ -514,11 +579,150 @@ function card(r) {
     price.append(el('div', 'now pct', r.d ? '−' + r.d + '%' : '—'));
     price.append(el('span', 'na', 'kaina nenurodyta'));
   }
+  if (slot) price.append(el('span', 'slot-space'));
   body.append(info, price);
   c.append(body);
 
   if (r.r) c.append(el('div', 'warn', '⚠ Kaina gali būti nuskaityta neteisingai – patikrinkite leidinyje'));
   return c;
+}
+
+/* ---------- Krepšelis: laikomas tik šiame įrenginyje (IndexedDB, raktas 'basket') ----------
+   Prekė įsimenama su visais savo duomenimis, todėl lieka krepšelyje ir atėjus kitos savaitės data.json.
+   data.json prekės neturi nuolatinio id, todėl jis sudaromas iš tinklo, pavadinimo, kiekio, galiojimo ir puslapio. */
+let BASKET = [];   // [{ id, it, done, at }]
+const itemId = r => [r.c, r.n, r.q || '', r.f || '', r.pg].join('|');
+const snap = ({ w, st, x, s, ...rest }) => rest;
+const inBasket = r => BASKET.some(b => b.id === itemId(r));
+async function loadBasket() {
+  const saved = await kv.get('basket');
+  BASKET = Array.isArray(saved) ? saved : [];
+  const byId = new Map(DATA.items.map(it => [itemId(it), it]));
+  for (const b of BASKET) { const fresh = byId.get(b.id); if (fresh) b.it = snap(fresh); }   // pvz. pataisyta kaina
+  updateCount();
+}
+function saveBasket(bump) { kv.put('basket', BASKET); updateCount(bump); }
+function updateCount(bump) {
+  const n = BASKET.filter(b => !b.done).length, c = $('basketCount');
+  c.hidden = !n; c.textContent = n;
+  if (bump) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+}
+function toggleBasket(r) {
+  const i = BASKET.findIndex(b => b.id === itemId(r));
+  if (i >= 0) BASKET.splice(i, 1); else BASKET.push({ id: itemId(r), it: snap(r), done: false, at: Date.now() });
+  saveBasket(i < 0);
+}
+
+// sąrašo kortelė + mygtukas „Į krepšelį“ (mygtukas šalia nuorodos, ne jos viduje)
+function listCard(r) {
+  const box = el('div', 'cardbox');
+  const b = el('button', 'slot'); b.type = 'button';
+  const paint = () => {
+    const on = inBasket(r);
+    b.classList.toggle('on', on);
+    b.innerHTML = on ? ICON.inb : ICON.add;
+    b.setAttribute('aria-pressed', String(on));
+    b.title = on ? 'Krepšelyje (paspauskite, kad išimtumėte)' : 'Į krepšelį';
+    b.setAttribute('aria-label', (on ? 'Išimti iš krepšelio: ' : 'Įdėti į krepšelį: ') + r.n);
+  };
+  b.onclick = () => { toggleBasket(r); paint(); };
+  paint();
+  box.append(card(r, true), b);
+  return box;
+}
+
+const sumP = list => list.reduce((a, b) => a + (b.it.p ?? 0), 0);
+const sumSave = list => list.reduce((a, b) => a + (b.it.o > b.it.p ? b.it.o - b.it.p : 0), 0);
+let confirmClear = false;
+const ICON = {
+  add: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 6.5"/><circle cx="9.5" cy="20.5" r="1.2"/><circle cx="16.5" cy="20.5" r="1.2"/><path d="M13.5 6.5v6M10.5 9.5h6" stroke-width="2.3"/></svg>',
+  inb: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 6.5"/><circle cx="9.5" cy="20.5" r="1.2"/><circle cx="16.5" cy="20.5" r="1.2"/><path d="m10.5 9.8 2.2 2.2 4-4.3" stroke-width="2.4"/></svg>',
+  rm: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+};
+
+function renderBasket() {
+  const v = $('basketView');
+  v.replaceChildren();
+  if (!BASKET.length) {
+    const box = el('div', 'empty');
+    box.append(el('div', 'big', '🛒'), el('h2', null, 'Krepšelis tuščias'),
+      el('p', null, 'Akcijų sąraše spauskite krepšelio mygtuką su „+“ prie prekių, kurias norite nupirkti.'));
+    const b = el('button', 'chip', 'Žiūrėti akcijas'); b.type = 'button'; b.onclick = () => setView('list');
+    box.append(b);
+    v.append(box);
+    return;
+  }
+  const n = BASKET.length, done = BASKET.filter(b => b.done), left = BASKET.filter(b => !b.done);
+  const noPrice = BASKET.filter(b => b.it.p == null).length;
+
+  const sum = el('div', 'sum');
+  const row = el('div', 'row');
+  const l = el('div'); l.append(el('div', 'lbl', left.length ? 'Liko nupirkti' : 'Viskas nupirkta 🎉'));
+  const tot = el('div', 'total', eur(sumP(left))); tot.append(el('small', null, ' €')); l.append(tot);
+  const r = el('div'); r.style.textAlign = 'right';
+  r.append(el('div', 'lbl', 'iš viso ' + eur(sumP(BASKET)) + ' €'));
+  const sv = sumSave(BASKET); if (sv > 0) r.append(el('div', 'save', 'sutaupote ' + eur(sv) + ' €'));
+  row.append(l, r);
+  const bar = el('div', 'bar'); const fill = el('i'); fill.style.width = (done.length / n * 100) + '%'; bar.append(fill);
+  sum.append(row, bar, el('div', 'lbl', `${done.length} iš ${n} nupirkta` + (noPrice ? ` · ${noPrice} be kainos (neįskaičiuota)` : '')));
+  v.append(sum);
+
+  // grupės pagal parduotuvę: perkant einama iš vienos į kitą; nenupirktos viršuje
+  const keys = [...Object.keys(CHAINS), ...new Set(BASKET.map(b => b.it.c).filter(c => !(c in CHAINS)))];
+  for (const c of keys) {
+    const items = BASKET.filter(b => b.it.c === c).sort((a, b) => a.done - b.done || a.at - b.at);
+    if (!items.length) continue;
+    const g = el('div', 'grp');
+    const s = el('span', 'store'); s.style.setProperty('--c', chainColor(c)); s.append(el('span', 'dot'), CHAINS[c] || c);
+    const gl = items.filter(b => !b.done);
+    g.append(s, `${items.length} ${prekes(items.length)}`, el('span', 'gsum', gl.length ? eur(sumP(gl)) + ' €' : '✓'));
+    const list = el('div', 'blist');
+    list.append(...items.map(basketCard));
+    v.append(g, list);
+  }
+
+  const act = el('div', 'bactions');
+  if (done.length) {
+    const b = el('button', 'chip', `Pašalinti nupirktas (${done.length})`); b.type = 'button';
+    b.onclick = () => { BASKET = BASKET.filter(x => !x.done); saveBasket(); renderBasket(); };
+    act.append(b);
+  }
+  const clr = el('button', 'chip', confirmClear ? 'Tikrai išvalyti viską?' : 'Išvalyti krepšelį'); clr.type = 'button';
+  if (confirmClear) clr.style.color = 'var(--accent)';
+  clr.onclick = () => {
+    if (confirmClear) { BASKET = []; saveBasket(); }
+    confirmClear = !confirmClear; renderBasket();
+  };
+  act.append(clr);
+  v.append(act);
+}
+
+function basketCard(b) {
+  const box = el('div', 'cardbox b' + (b.done ? ' done' : ''));
+  const ch = el('button', 'check'); ch.type = 'button';
+  ch.setAttribute('role', 'checkbox'); ch.setAttribute('aria-checked', String(b.done));
+  ch.setAttribute('aria-label', 'Nupirkta: ' + b.it.n);
+  ch.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+  ch.onclick = () => { b.done = !b.done; confirmClear = false; saveBasket(); renderBasket(); };
+  const rm = el('button', 'slot rm'); rm.type = 'button'; rm.innerHTML = ICON.rm; rm.title = 'Pašalinti';
+  rm.setAttribute('aria-label', 'Pašalinti iš krepšelio: ' + b.it.n);
+  rm.onclick = () => { BASKET = BASKET.filter(x => x !== b); saveBasket(); renderBasket(); };
+  box.append(card(b.it, true), ch, rm);
+  return box;
+}
+
+async function setView(v) {
+  state.view = v;
+  const isB = v === 'basket';
+  document.body.classList.toggle('v-basket', isB);
+  document.querySelector('.brand h1').textContent = isB ? 'Krepšelis' : 'Akcijos';
+  for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.view === v));
+  statusEl.hidden = resultsEl.hidden = pagerEl.hidden = isB;
+  $('basketView').hidden = !isB;
+  confirmClear = false;
+  if (!isB || !DATA) await load();   // pirmą kartą užkrauna duomenis ir krepšelį
+  if (isB) { syncUrl(); renderBasket(); }
+  window.scrollTo(0, 0);
 }
 
 /* ---------- Puslapiavimas ---------- */
@@ -563,8 +767,9 @@ function syncUrl() {
   if (state.sort !== 'price') p.set('sort', state.sort);
   if (state.all) p.set('all', '1');
   if (state.page > 1) p.set('page', state.page);
+  if (state.view === 'basket') p.set('view', 'krepselis');
   const qs = p.toString();
-  history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+  try { history.replaceState(null, '', qs ? '?' + qs : location.pathname); } catch {}
 }
 
 async function load() {
@@ -576,6 +781,7 @@ async function load() {
     resultsEl.replaceChildren(...[0, 1, 2, 3].map(() => el('div', 'skel')));
     try {
       await loadData();
+      await loadBasket();
     } catch (e) {
       statusEl.textContent = '';
       const box = el('div', 'empty');
@@ -609,7 +815,7 @@ async function load() {
   }
   const from = (data.page - 1) * data.per_page + 1, to = from + data.results.length - 1;
   statusEl.textContent = `${data.total} ${prekes(data.total)}` + (data.pages > 1 ? ` · ${from}–${to}` : '');
-  resultsEl.replaceChildren(...data.results.map(card));
+  resultsEl.replaceChildren(...data.results.map(listCard));
   renderPager(data.page, data.pages);
 }
 
@@ -645,8 +851,9 @@ new IntersectionObserver(([e]) => document.querySelector('header').classList.tog
 q.value = state.q;
 allBox.checked = state.all;
 $('searchBox').classList.toggle('has-text', !!q.value);
-if (matchMedia('(min-width: 700px)').matches) q.focus();
-load();
+if (matchMedia('(min-width: 700px)').matches && state.view === 'list') q.focus();
+for (const t of document.querySelectorAll('.tab')) t.onclick = () => { if (t.dataset.view !== state.view) setView(t.dataset.view); };
+setView(state.view);
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
