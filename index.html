@@ -289,7 +289,7 @@
            background:var(--text); color:var(--bg); font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .toast.in { animation:tin .2s ease; }
   @keyframes tin { from { opacity:0; transform:translateY(8px); } }
-  .toast .tmsg { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .toast .tmsg { flex:1; min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.35; }
   .toast button { flex-shrink:0; border:0; background:transparent; color:inherit; font-weight:800; font-size:14px;
                   padding:8px 10px; border-radius:10px; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
   .sum { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; margin:6px 0 4px; }
@@ -324,6 +324,9 @@
   .wsum { color:var(--muted); font-size:13px; margin:8px 4px 10px; }
   .wlist { display:grid; gap:10px; align-items:start; }
   @media (min-width:700px) { .wlist { grid-template-columns:1fr 1fr; } }
+  .wg.flash { animation:wflash 1.8s ease; scroll-margin-bottom:170px; }   /* virš pranešimo */
+  #watchView { padding-bottom:150px; }   /* kad ir paskutinė grupė galėtų pakilti virš pranešimo */
+  @keyframes wflash { 0%, 45% { box-shadow:0 0 0 3px color-mix(in srgb, var(--good) 75%, transparent), var(--shadow); } 100% { box-shadow:var(--shadow); } }
   .wg { background:var(--surface); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; animation:pop .25s ease both; }
   .wg.none { background:transparent; box-shadow:none; border:1px dashed var(--line); }
   .wh { display:flex; align-items:center; gap:8px; padding:8px 6px 8px 14px; min-height:48px; }
@@ -366,6 +369,7 @@
   .wcart svg { width:19px; height:19px; }
   .wmore { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left;
            padding:12px 14px; min-height:44px; font-size:14px; font-weight:650; color:var(--text); cursor:pointer; }
+  .wmore .wmo { font-weight:500; color:var(--muted); font-size:13px; }
   .wnone { padding:0 14px 12px; margin-top:-6px; font-size:13px; color:var(--muted); }
 
   /* ---------- Kur apsipirkti ---------- */
@@ -708,13 +712,28 @@ function qtyBase(it) {
   const pref = sizes.filter(x => x.unit !== 'vnt'), pool = pref.length ? pref : sizes;
   return pool.reduce((a, b) => (b.base < a.base ? b : a));
 }
-// paieškos žodis kaip šalutinis: po „su“ / „be“ (iki 3 žodžių: „bandelės su Teriyaki vištiena“)
+// paieškos žodis kaip šalutinis: po „su“ / „be“ (iki 5 žodžių: „batonas su kumpiu, sūriu ir česnakiniu sviestu“)
 // arba prieš „skonio“, „įdaru“ („sūrio skonio“, „vištienos ir sūrio įdaru“)
 const SIDE_BEFORE = new Set(['su', 'be']);
+const SIDE_FOR = new Set(['prie', 'skirta', 'skirtas', 'skirti', 'skirtos', 'tinka']);
 const SIDE_AFTER = new Set(['skonio', 'idaru', 'idaro', 'padazu', 'padaze', 'aromato', 'kvapo']);
+// kita forma prieš šiuos daiktavardžius – tik apibūdinimas („pieno šokoladas", „vištienos sultinys", „sūrio padažas"),
+// bet ne „vištienos filė", „sūrio lazdelės" ar „sviesto kepiniai" – jie sąraše nėra
+const MOD_HEADS = new Set(['gerimas', 'gerimai', 'sokoladas', 'sokoladai', 'sultinys', 'sultinio', 'padazas', 'desertas', 'desertai',
+  'kremas', 'uzpilas', 'traskuciai', 'skonis', 'jogurtas', 'jogurtai', 'sausainiai', 'batonelis', 'batoneliai', 'ledai', 'kokteilis',
+  'saldainiai', 'kubeliai', 'prieskoniai', 'aromatas', 'suris', 'misinys', 'produktai'].map(x => stem(x)));
+function sideAfter(it, j) {   // „bananų ir braškių skonio": iki 3 žodžių į priekį, bet ne už „su" („sūris su kumpio skonio")
+  for (let k = j + 1; k <= j + 3 && k < it.w.length; k++) {
+    if (it.w[k] === 'su') return false;
+    if (SIDE_AFTER.has(it.w[k])) return true;
+  }
+  return false;
+}
 function primaryHit(it, tok, raw) {
   return it.w.some((w, j) => (it.st[j] === tok || w.startsWith(raw))
-    && !it.w.slice(Math.max(0, j - 3), j).some(x => SIDE_BEFORE.has(x)) && !SIDE_AFTER.has(it.w[j + 1]));
+    && !it.w.slice(Math.max(0, j - 5), j).some(x => SIDE_BEFORE.has(x)) && !sideAfter(it, j)
+    && !SIDE_FOR.has(it.w[j - 1]) && !SIDE_FOR.has(it.w[j - 2])   // „Sausainiai PRIE KAVOS“, „skirta kavai“
+    && !(w !== raw && j + 1 < it.w.length && MOD_HEADS.has(it.st[j + 1])));
 }
 
 // ta pati paieška naudojama sąraše ir stebimose prekėse
@@ -1164,6 +1183,10 @@ const exKey = it => it.c + '|' + it.s;
 const isHidden = (w, it) => !!w.ex && (w.ex.items.includes(exKey(it)) || w.ex.words.some(x => it.st.includes(x.s)));
 let HIDE_SUGG = null, HIDE_OPEN = new Set();   // pasiūlyti žodžiai po paslėpimo; išskleisti „Paslėpta“ sąrašai
 function watchHits(w) { return watchHitsAll(w).filter(it => !isHidden(w, it)); }
+// tikrai atitinkančios: pati prekė, ne priedas („… su bananais", „bananų skonio", „pieno šokoladas"); bet kuri forma
+// („vištienos filė"). Tą patį naudoja ir rekomendacija, ir skaičiai sąraše.
+function coreHits(hits) { return hits.filter(h => !h.r); }
+const susijusios = n => `${n} ${plural(n, 'susijusi', 'susijusios', 'susijusių')}`;
 function hiddenHits(w) { return w.ex ? watchHitsAll(w).filter(it => isHidden(w, it)) : []; }
 const NO_WORD = new Set(['arba', 'rieb', 'rusiu', 'rusys', 'dydziu', 'ivairiu', 'kaina', 'nuolaida', 'pakuote']);
 // žodžiai iš paslėptos prekės pavadinimo, kuriais galima slėpti ir kitas („desertas (1)", „varškės (4)")
@@ -1220,7 +1243,7 @@ async function loadWatch() {
 function saveWatch() { kv.put('watch', WATCH); updateWatchCount(); }
 function updateWatchCount() {
   // skaičius prie skilties: kiek stebimų prekių turi naujų akcijų
-  const n = WATCH.filter(w => watchHits(w).some(it => !w.seen.includes(itemId(it)))).length, c = $('watchCount');
+  const n = WATCH.filter(w => coreHits(watchHits(w)).some(it => !w.seen.includes(itemId(it)))).length, c = $('watchCount');
   c.hidden = !n; c.textContent = n;
 }
 function addWatch(q) {
@@ -1233,13 +1256,34 @@ function addWatch(q) {
   return true;
 }
 function removeWatch(q) { WATCH = WATCH.filter(w => watchKey(w.q) !== watchKey(q)); saveWatch(); }
+// pridėjimas su patvirtinimu: pranešimas su akcijų skaičiumi ir „Atšaukti"; jau esanti – parodoma sąraše
+let JUST_ADDED = null;   // ką tik pridėta / rasta prekė: „Mano prekėse" prie jos nuslenkama ir ji paryškinama
+const rerenderWatchOrList = () => (state.view === 'watch' ? renderWatch() : load());
+function addWatchUI(q, fromSearch = false) {
+  q = q.trim().replace(/\s+/g, ' ');
+  if (!watchKey(q)) return false;
+  const have = findWatch(q);
+  if (have) { JUST_ADDED = watchKey(have.q); toast(`„${have.q}“ jau yra jūsų prekėse`); return true; }
+  addWatch(q);
+  const w = findWatch(q), all = watchHits(w), n = coreHits(all).length, other = all.length - n;
+  JUST_ADDED = watchKey(w.q);
+  toast(`Pridėta${fromSearch ? ' į „Mano prekės“' : ''}: ${w.q} · ${n ? akcijos(n) : 'akcijų šiuo metu nėra'}`
+    + (other ? ` (dar ${susijusios(other)})` : ''),
+    () => { removeWatch(w.q); JUST_ADDED = null; rerenderWatchOrList(); });
+  return true;
+}
+function removeWatchUI(q) {
+  const prev = WATCH.slice();
+  removeWatch(q);
+  toast(`Pašalinta iš „Mano prekės“: ${q}`, () => { WATCH = prev; saveWatch(); rerenderWatchOrList(); });
+}
 function watchToggle(q, cls) {
   const on = !!findWatch(q);
   const b = el('button', cls, on ? '★ Stebima' : `☆ Stebėti „${q}“`);
   if (cls === 'wbtn') b.textContent = on ? '★ Stebima' : '☆ Stebėti';
   b.type = 'button';
   b.title = on ? 'Paspauskite, kad nebestebėtumėte' : 'Rodyti šios prekės akcijas skiltyje „Mano prekės“';
-  b.onclick = () => { on ? removeWatch(q) : addWatch(q); load(); };
+  b.onclick = () => { on ? removeWatchUI(q) : addWatchUI(q, true); load(); };
   return b;
 }
 
@@ -1287,8 +1331,7 @@ function renderWatch() {
   form.append(inp, add);
   form.onsubmit = e => {
     e.preventDefault();
-    if (addWatch(inp.value)) { renderWatch(); $('watchView').querySelector('.wadd input').focus(); }
-    else if (inp.value.trim()) { inp.select(); }
+    if (addWatchUI(inp.value)) renderWatch();
   };
   v.append(form);
 
@@ -1299,7 +1342,7 @@ function renderWatch() {
     const sg = el('div', 'sugg');
     for (const q of SUGGEST) {
       const b = el('button', 'chip', '+ ' + q); b.type = 'button';
-      b.onclick = () => { addWatch(q); renderWatch(); };
+      b.onclick = () => { addWatchUI(q); renderWatch(); };
       sg.append(b);
     }
     box.append(sg);
@@ -1308,25 +1351,26 @@ function renderWatch() {
   }
 
   // prekės su akcijomis viršuje (pridėjimo tvarka), be akcijų – apačioje
-  const groups = WATCH.map(w => ({ w, hits: watchHits(w) }));
-  groups.sort((a, b) => (!a.hits.length) - (!b.hits.length) || a.w.at - b.w.at);
-  const withHits = groups.filter(g => g.hits.length).length;
+  const groups = WATCH.map(w => { const hits = watchHits(w); return { w, hits, core: coreHits(hits) }; });
+  groups.sort((a, b) => (!a.core.length) - (!b.core.length) || b.w.at - a.w.at);   // naujausios viršuje
+  const withHits = groups.filter(g => g.core.length).length;
   v.append(el('div', 'wsum', `${withHits} iš ${WATCH.length} ${plural(WATCH.length, 'prekės', 'prekių', 'prekių')} turi akcijų`));
   const rc = recCard(); if (rc) v.append(rc);
 
   const list = el('div', 'wlist');
-  for (const { w, hits } of groups) {
+  for (const { w, hits, core } of groups) {
     const fresh = (NEWNOW && NEWNOW.get(watchKey(w.q))) || new Set();
-    const g = el('section', 'wg' + (hits.length ? '' : ' none'));
+    const other = hits.length - core.length;   // susijusios: „bananų skonio gėrimas", „jogurtas su bananais"
+    const g = el('section', 'wg' + (core.length ? '' : ' none'));
+    if (JUST_ADDED === watchKey(w.q)) g.classList.add('flash');
     const h = el('div', 'wh');
     h.append(el('h3', null, w.q.charAt(0).toUpperCase() + w.q.slice(1)));
-    const nNew = hits.filter(it => fresh.has(itemId(it))).length;
+    const nNew = core.filter(it => fresh.has(itemId(it))).length;
     if (nNew) h.append(el('span', 'new', naujos(nNew)));
     const m = el('span', 'wm');
-    if (hits.length) {
-      const best = hits.some(it => !it.y) ? hits.filter(it => !it.y) : hits;   // „nuo“ – iš tiksliai atitinkančių
-      const prices = best.map(it => it.p).filter(p => p != null);
-      m.append(akcijos(hits.length));
+    if (core.length) {   // skaičius ir „nuo" – tik tikrai atitinkančių
+      const prices = core.map(it => it.p).filter(p => p != null);
+      m.append(akcijos(core.length));
       if (prices.length) { m.append(' · nuo '); m.append(el('b', null, eur(Math.min(...prices)) + ' €')); }
     }
     h.append(m);
@@ -1339,9 +1383,9 @@ function renderWatch() {
     };
     h.append(x);
     g.append(h);
-    if (!hits.length) g.append(el('div', 'wnone', 'Akcijų šiuo metu nėra'));
-    // pirmiausia naujos, tada pigiausios; rodomos 3, kitos – sąraše
-    const shown = hits.slice().sort((a, b) => fresh.has(itemId(b)) - fresh.has(itemId(a))).slice(0, 3);
+    if (!core.length) g.append(el('div', 'wnone', 'Akcijų šiuo metu nėra' + (other ? ` · rasta ${susijusios(other)} ${prekes(other)}` : '')));
+    // rodomos tik tikrai atitinkančios: pirmiausia naujos, tada pigiausios; po 3, kitos – sąraše
+    const shown = core.slice().sort((a, b) => fresh.has(itemId(b)) - fresh.has(itemId(a))).slice(0, 3);
     for (const it of shown) g.append(watchRow(it, fresh.has(itemId(it)), w));
     // ką tik paslėpus: pasiūlymas slėpti ir kitas su tuo pačiu žodžiu
     if (HIDE_SUGG && HIDE_SUGG.key === watchKey(w.q) && HIDE_SUGG.words.length) {
@@ -1359,8 +1403,10 @@ function renderWatch() {
       sg.append(row);
       g.append(sg);
     }
-    if (hits.length > 3) {
-      const more = el('button', 'wmore', `Rodyti visas ${hits.length} →`); more.type = 'button';
+    if (hits.length > shown.length) {   // paieškoje – visos, ir susijusios
+      const more = el('button', 'wmore', `Rodyti visas ${hits.length}`); more.type = 'button';
+      if (other) more.append(el('span', 'wmo', ` (iš jų ${susijusios(other)})`));
+      more.append(' →');
       more.onclick = () => { state.q = w.q; state.chain = null; state.page = 1; q.value = w.q;
         $('searchBox').classList.add('has-text'); setView('list'); };
       g.append(more);
@@ -1395,6 +1441,9 @@ function renderWatch() {
     list.append(g);
   }
   v.append(list);
+  const fl = list.querySelector('.wg.flash');
+  if (fl) requestAnimationFrame(() => fl.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
+  JUST_ADDED = null;
 }
 
 // atidarius skiltį: įsimenama, kas šįkart nauja, ir tai pažymima kaip matyta
@@ -1438,8 +1487,7 @@ function recommend() {
       continue;
     }
     // tik tikrai atitinkančios: pati prekė, ne „… su sūriu“; tiksliai tas žodis, ne kita forma
-    let rel = hits.filter(h => !h.r && !h.y);
-    if (!rel.length) rel = hits.filter(h => !h.r);
+    const rel = coreHits(hits);
     // tik „jogurtas su … bananais" – tai ne bananų akcija: prekė laikoma be akcijos
     if (!rel.length) {
       const later = all.filter(h => !h.r && h.f && h.f > D).map(h => h.f).sort()[0];
