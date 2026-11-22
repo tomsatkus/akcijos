@@ -605,6 +605,7 @@ const PER_PAGE = 24;   // dalijasi iš 2 ir 3: lygios eilės telefone ir kompiut
    Laukai: c tinklas, n pavadinimas, q kiekis, p kaina, o sena kaina, d nuolaida %, u kaina už vnt., k sąlygos,
    pg puslapis, f/t galioja nuo/iki, r patikrinti, s paieškos tekstas, l leidinio nuoroda. */
 let DATA = null;
+/* @paieska:pradzia – šias dalis vykdo ir tests/paieska.py (be naršyklės), todėl jose – tik paieškos logika */
 // lietuviškos galūnės be diakritikų, ilgiausios pirmos (common.py _ENDINGS)
 const ENDINGS = [...new Set(("iuose uose ose ese yse iams ioms ams oms ems ims iais ais omis emis imis umis mis " +
   "ioje oje eje uje iai iui iu ius ies ios iam iom as is ys us os es ai ei ui am om em uo ens io ia a e o u i y s")
@@ -615,6 +616,7 @@ function stem(t) {
   for (const e of ENDINGS) if (t.endsWith(e) && t.length - e.length >= 3) return t.slice(0, -e.length);
   return t;
 }
+/* @paieska:pabaiga */
 
 /* ---------- Prisijungimas: data.json užšifruotas (web/export_static.py, web/vartotojai.py) ----------
    Vartotojo slaptažodis -> PBKDF2 raktas -> atrakina duomenų raktą -> AES-GCM -> gzip -> JSON.
@@ -829,6 +831,7 @@ function qtyBase(it) {
   const pref = sizes.filter(x => x.unit !== 'vnt'), pool = pref.length ? pref : sizes;
   return pool.reduce((a, b) => (b.base < a.base ? b : a));
 }
+/* @paieska:pradzia */
 // paieškos žodis kaip šalutinis: po „su“ / „be“ (iki 5 žodžių: „batonas su kumpiu, sūriu ir česnakiniu sviestu“)
 // arba prieš „skonio“, „įdaru“ („sūrio skonio“, „vištienos ir sūrio įdaru“)
 const SIDE_BEFORE = new Set(['su', 'be']);
@@ -840,6 +843,19 @@ const MOD_HEADS = new Set(['gerimas', 'gerimai', 'sokoladas', 'sokoladai', 'sult
   'kremas', 'uzpilas', 'traskuciai', 'skonis', 'jogurtas', 'jogurtai', 'sausainiai', 'batonelis', 'batoneliai', 'ledai', 'kokteilis',
   'saldainiai', 'kubeliai', 'prieskoniai', 'aromatas', 'suris', 'misinys', 'produktai',
   'zvaigzdes'].map(x => stem(x)));   // „zvaigzdes“ – prekės ženklas „PIENO ŽVAIGŽDĖS“
+// įnagininkas (kuo?) pagal tikrą žodį su diakritikais: „sūriu“, „agurkais“, „šokoladu“, „obuoliais“ – bet ne „rūšių“, „speltų“
+// (be diakritikų „-u“ ir „-ų“ nebeatskiriami)
+const INSTR_RE = /(u|ais|omis|ėmis|imis|umis)$/;
+function instr(it, w) {
+  if (!it.dia) { it.dia = new Map(); for (const x of it.n.split(/[^\p{L}0-9]+/u)) if (x) it.dia.set(normalize(x), x); }
+  const o = it.dia.get(w);   // prekės ženklai DIDŽIOSIOMIS („LUPILU“) ir trumpi svetimžodžiai („Tofu“, „Bleu“) – ne įnagininkas
+  return !!o && o !== o.toUpperCase() && o.length >= 5 && INSTR_RE.test(o.toLowerCase());
+}
+// „įdarytas obuoliais“, „aplieti (pieniniu) šokoladu“: įnagininkas tiesiai po dalyvio. Ne „Glaistytas varškės sūrelis“
+const COATED_RE = /^(idaryt|apliet|glaistyt|padengt|apibarstyt|aptraukt|pagardint)/;
+function coatedWith(it, j) {
+  return j > 0 && (COATED_RE.test(it.w[j - 1]) || (j > 1 && COATED_RE.test(it.w[j - 2]) && instr(it, it.w[j - 1])));
+}
 function sideAfter(it, j) {   // „bananų ir braškių skonio": iki 3 žodžių į priekį, bet ne už „su" („sūris su kumpio skonio")
   for (let k = j + 1; k <= j + 3 && k < it.w.length; k++) {
     if (it.w[k] === 'su') return false;
@@ -850,6 +866,7 @@ function sideAfter(it, j) {   // „bananų ir braškių skonio": iki 3 žodži�
 function primaryHit(it, tok, raw) {
   return it.w.some((w, j) => (it.st[j] === tok || w.startsWith(raw))
     && !it.w.slice(Math.max(0, j - 5), j).some(x => SIDE_BEFORE.has(x)) && !sideAfter(it, j)
+    && !(instr(it, w) && (it.w.slice(Math.max(0, j - 8), j - 5).some(x => SIDE_BEFORE.has(x)) || coatedWith(it, j)))
     && !SIDE_FOR.has(it.w[j - 1]) && !SIDE_FOR.has(it.w[j - 2])   // „Sausainiai PRIE KAVOS“, „skirta kavai“
     && !(w !== raw && modAfter(it, j))
     && !(w !== raw && dativeOf(raw).includes(w)   // „Sirupas kavai“, „Padažas … vištienai“ – skirta tam, ne pati prekė,
@@ -897,6 +914,7 @@ function matchItems(items, text) {
   }
   return items;
 }
+/* @paieska:pabaiga */
 
 // be paieškos – didžiausios nuolaidos (įdomiausios akcijos), su paieška – pigiausios; kol naudotojas nepasirinko pats
 const sortMode = () => state.sort || (state.q.trim() ? 'price' : 'discount');
