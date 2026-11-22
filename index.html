@@ -99,6 +99,11 @@
   .chip .n { font-weight:500; opacity:.6; font-variant-numeric:tabular-nums; }
 
   main { padding:4px 16px calc(env(safe-area-inset-bottom) + 40px); }
+  .stale { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin:6px 0 4px; padding:10px 14px; border-radius:14px;
+           background:var(--surface-2); color:var(--text); font-size:13.5px; line-height:1.4; }
+  .stale.strong { background:var(--warn-soft); border:1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
+  .stale .st-t { flex:1; min-width:200px; }
+  .stale small { display:block; margin-top:2px; color:var(--muted); font-size:12.5px; }
   #status { color:var(--muted); font-size:13px; margin:6px 4px 10px; min-height:18px; }
 
   /* ---------- Prisijungimas ---------- */
@@ -487,6 +492,7 @@
 
 <main>
   <div class="wrap">
+    <div id="stale" class="stale" role="status" hidden></div>
     <div id="status" aria-live="polite"></div>
     <div id="results"></div>
     <nav class="pager" id="pager" aria-label="Puslapiai"></nav>
@@ -670,6 +676,46 @@ function askLogin(env, msg) {
 }
 
 // „atnaujinta 11.20“, o be ryšio – „be ryšio · duomenys 11.20“ (rodoma paskutinė išsaugota kopija)
+/* ---------- Pasenę duomenys: kompiuteris seniai neatnaujino data.json arba visų leidinių akcijos jau baigėsi ----------
+   Rodoma visose skiltyse. Riba – 4 dienos (dukart per savaitę vykstantis atnaujinimas praleistas bent kartą). */
+const STALE_DAYS = 4;
+function staleInfo() {
+  if (!DATA) return null;
+  const t = today(), g = (DATA.generated || '').slice(0, 10), age = g ? -daysLeft(g) : 0;
+  const live = DATA.items.filter(it => !it.t || it.t >= t);
+  if (!live.length) {
+    const last = DATA.items.map(it => it.t).filter(Boolean).sort().pop();
+    return { level: 'all', last, g, age };
+  }
+  const have = new Set(DATA.items.map(it => it.c)), now = new Set(live.map(it => it.c));
+  const gone = [...have].filter(c => !now.has(c) && c in CHAINS);   // tinklas, kurio visos akcijos baigėsi
+  if (age >= STALE_DAYS) return { level: 'old', g, age, gone };
+  if (gone.length) return { level: 'chains', g, age, gone };
+  return null;
+}
+function renderStale() {
+  const box = $('stale'), s = staleInfo();
+  box.hidden = !s;
+  if (!s) { box.replaceChildren(); return; }
+  box.className = 'stale' + (s.level === 'all' ? ' strong' : '');
+  const gen = s.g ? ` Duomenys atnaujinti ${fmtDate(s.g)}${s.age > 0 ? ` (prieš ${s.age} d.)` : ''}.` : '';
+  const txt = el('span', 'st-t');
+  if (s.level === 'all') {
+    txt.append(el('b', null, 'Galiojančių akcijų nėra.'), ` Naujų leidinių dar negauta – paskutinės akcijos baigėsi ${s.last ? fmtDate(s.last) : 'anksčiau'}.${gen}`,
+      el('small', null, 'Duomenis atnaujina kompiuteris (atnaujinti.bat) – patikrinkite, ar jis įjungtas.'));
+  } else if (s.level === 'old') {
+    txt.append(el('b', null, `Duomenys atnaujinti prieš ${s.age} d.`), ` Naujausių leidinių gali trūkti.`
+      + (s.gone.length ? ` Be galiojančių akcijų: ${s.gone.map(c => CHAINS[c]).join(', ')}.` : ''));
+  } else {
+    txt.append(`${s.gone.map(c => CHAINS[c]).join(', ')}: ${s.gone.length > 1 ? 'naujų leidinių' : 'naujo leidinio'} dar nėra – ankstesnės akcijos baigėsi.`);
+  }
+  box.replaceChildren(txt);
+  if (s.level === 'all' && !state.all) {
+    const b = el('button', 'chip sm', 'Rodyti pasibaigusias'); b.type = 'button';
+    b.onclick = () => { state.all = true; allBox.checked = true; state.page = 1; setView('list'); };
+    box.append(b);
+  }
+}
 function netStatus() {
   const g = (DATA && DATA.generated) || '', d = g ? fmtDate(g.slice(0, 10)) : '';
   const off = navigator.onLine === false;
@@ -2033,6 +2079,7 @@ async function load(more = false) {
       return;
     }
   }
+  renderStale();
   const data = browse();
   state.page = data.page;
   syncUrl();
@@ -2043,8 +2090,11 @@ async function load(more = false) {
     statusEl.textContent = '';
     pagerEl.replaceChildren();
     const box = el('div', 'empty');
-    box.append(el('div', 'big', '🔍'), el('h2', null, 'Nieko neradome'),
-      el('p', null, state.q ? `Pagal „${state.q}“ akcijų nėra. Pabandykite trumpesnį ar kitą žodį.` : 'Šiuo metu akcijų nėra.'));
+    const noLive = staleInfo()?.level === 'all' && !state.all;
+    box.append(el('div', 'big', noLive ? '🗓️' : '🔍'), el('h2', null, noLive ? 'Galiojančių akcijų nėra' : 'Nieko neradome'),
+      el('p', null, noLive
+        ? 'Laukiama naujų leidinių. Ankstesnes akcijas galite peržiūrėti mygtuku „Rodyti pasibaigusias“ viršuje.'
+        : state.q ? `Pagal „${state.q}“ akcijų nėra. Pabandykite trumpesnį ar kitą žodį.` : 'Šiuo metu akcijų nėra.'));
     if (state.q && !state.chain) box.append(watchToggle(state.q, 'chip'));
     if (state.chain) {
       const b = el('button', 'chip', 'Ieškoti visose parduotuvėse'); b.type = 'button';
