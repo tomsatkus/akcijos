@@ -347,6 +347,20 @@
   .wpr { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
   .wp { font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.02em; line-height:1; }
   .wpr .badge { font-size:11px; padding:1px 5px; }
+  .wrow { flex-wrap:wrap; }
+  .wno { flex-basis:100%; margin:-8px 0 2px; padding:4px 0 6px 30px; border:0; background:none; text-align:left; font:inherit;
+         font-size:12px; color:var(--muted); text-decoration:underline; text-underline-offset:2px; cursor:pointer; min-height:28px; }
+  .wsugg { border-top:1px solid var(--line); padding:10px 14px 12px; background:var(--surface-2); }
+  .wsl { font-size:13px; color:var(--muted); margin-bottom:8px; }
+  .wsc { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .chip.sm { min-height:34px; padding:0 12px; font-size:13px; }
+  .wsx { border:0; background:none; color:var(--muted); font:inherit; font-size:13px; padding:6px 8px; cursor:pointer; text-decoration:underline; }
+  .whid { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left; font:inherit;
+          padding:10px 14px; min-height:40px; font-size:13px; color:var(--muted); cursor:pointer; }
+  .whid span { color:var(--text); font-weight:600; }
+  .whl { padding:0 14px 10px; display:grid; gap:6px; }
+  .whr { display:flex; align-items:center; gap:10px; justify-content:space-between; font-size:13px; }
+  .whr span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .wcart { position:relative; right:auto; bottom:auto; width:36px; height:36px; flex-shrink:0; }   /* .slot poslinkiai čia netaikomi */
   .wcart::after { inset:-5px; }
   .wcart svg { width:19px; height:19px; }
@@ -403,6 +417,12 @@
   .rr .rt { grid-column:1 / -1; font-size:12.5px; color:var(--warn); font-weight:600; }
   .rr .rt.good { color:var(--good); }
   .rr .muted, .rr .rt.muted { color:var(--muted); font-weight:500; }
+  .rr .rn { grid-column:1 / -1; display:flex; align-items:baseline; gap:8px; font-size:12px; color:var(--muted); min-width:0; }
+  .rn .rnn { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wno.in { flex:none; flex-basis:auto; margin:0; padding:2px 0; min-height:0; }
+  .cmpi { font-size:12.5px; line-height:1.4; padding:3px 0; }
+  .cmpi .rn { display:flex; gap:8px; margin-top:1px; min-width:0; }
+  .rn .rnn { flex:0 1 auto; }
   .rec-note { margin-top:4px; font-size:11.5px; color:var(--muted); }
   .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:14px; }
   .rec-combo b { font-weight:700; }
@@ -412,7 +432,9 @@
   .cmp-row { padding:10px 0; border-top:1px solid var(--line); }
   .cmp-row .top { margin-bottom:2px; }
   .cmp-row .store { font-size:13px; }
-  .cmp-row .cn { margin-left:auto; font-weight:700; color:var(--text); font-size:13px; }
+  .cmp-row { min-width:0; }
+  .cmp-row .top { flex-wrap:wrap; }
+  .cmp-row .cn { margin-left:auto; font-weight:700; color:var(--text); font-size:13px; text-align:right; }
   .cmp-row .near { margin-top:6px; padding:8px 10px; font-size:13px; }
   .osm { color:var(--muted); font-size:11px; margin-top:8px; }
   .near-mini { color:var(--text); font-weight:650; font-size:12.5px; text-decoration:none; white-space:nowrap; border:0;
@@ -1136,7 +1158,52 @@ const akcijos = n => `${n} ${plural(n, 'akcija', 'akcijos', 'akcijų')}`;
 const naujos = n => `${n} ${plural(n, 'nauja', 'naujos', 'naujų')}`;
 const watchKey = q => normalize(q);
 const findWatch = q => WATCH.find(w => watchKey(w.q) === watchKey(q));
-function watchHits(w) {
+/* ---------- „Netinka": prekė paslepiama tik prie šios stebimos prekės (w.ex), ne visoje programėlėje ----------
+   w.ex.items – konkrečios prekės (tinklas + pavadinimas), w.ex.words – žodžiai (kamienai), galioja ir kitoms savaitėms */
+const exKey = it => it.c + '|' + it.s;
+const isHidden = (w, it) => !!w.ex && (w.ex.items.includes(exKey(it)) || w.ex.words.some(x => it.st.includes(x.s)));
+let HIDE_SUGG = null, HIDE_OPEN = new Set();   // pasiūlyti žodžiai po paslėpimo; išskleisti „Paslėpta“ sąrašai
+function watchHits(w) { return watchHitsAll(w).filter(it => !isHidden(w, it)); }
+function hiddenHits(w) { return w.ex ? watchHitsAll(w).filter(it => isHidden(w, it)) : []; }
+const NO_WORD = new Set(['arba', 'rieb', 'rusiu', 'rusys', 'dydziu', 'ivairiu', 'kaina', 'nuolaida', 'pakuote']);
+// žodžiai iš paslėptos prekės pavadinimo, kuriais galima slėpti ir kitas („desertas (1)", „varškės (4)")
+function hideWordSugg(w, it) {
+  const qs = new Set(search_stems(w.q)), rest = watchHits(w), out = [], seen = new Set();
+  for (const raw of it.n.split(/[\s,;()\/]+/)) {
+    const nw = normalize(raw);
+    if (nw.length < 4 || /\d/.test(nw) || NO_WORD.has(nw) || raw === raw.toUpperCase()) continue;   // DIDŽIOSIOS – prekės ženklas
+    const st = stem(nw);
+    if (qs.has(st) || seen.has(st)) continue;
+    seen.add(st);
+    const n = rest.filter(h => h.st.includes(st)).length;
+    if (rest.length && n === rest.length) continue;   // paslėptų viską
+    out.push({ t: raw.toLowerCase(), s: st, n: n + 1 });
+  }
+  return out.slice(0, 3);
+}
+const search_stems = q => normalize(q).split(' ').filter(Boolean).map(stem);
+function hideItem(w, it) {
+  const prev = JSON.stringify(w.ex || null);
+  w.ex = w.ex || { items: [], words: [] };
+  w.ex.items.push(exKey(it));
+  HIDE_SUGG = { key: watchKey(w.q), name: it.n, words: hideWordSugg(w, it) };
+  saveWatch(); renderWatch();
+  toast(`Paslėpta prie „${w.q}“: ${dispName(it.n)}`, () => { w.ex = JSON.parse(prev); HIDE_SUGG = null; saveWatch(); renderWatch(); });
+}
+function hideWord(w, word) {
+  const prev = JSON.stringify(w.ex);
+  w.ex.words.push({ s: word.s, t: word.t });
+  w.ex.items = w.ex.items.filter(k => !watchHitsAll(w).some(h => exKey(h) === k && h.st.includes(word.s)));   // žodis jau apima
+  HIDE_SUGG = null; saveWatch(); renderWatch();
+  toast(`Slepiamos prekės su žodžiu „${word.t}“`, () => { w.ex = JSON.parse(prev); saveWatch(); renderWatch(); });
+}
+function unhide(w, kind, v) {
+  if (kind === 'item') w.ex.items = w.ex.items.filter(k => k !== v);
+  else w.ex.words = w.ex.words.filter(x => x.s !== v);
+  if (!w.ex.items.length && !w.ex.words.length) { delete w.ex; HIDE_OPEN.delete(watchKey(w.q)); }
+  saveWatch(); renderWatch();
+}
+function watchHitsAll(w) {
   const t = today(), words = normalize(w.q).split(' ');
   const hits = matchItems(DATA.items.filter(it => !it.t || it.t >= t), w.q);
   // pirmiau prekės, kuriose žodis yra toks pat, kaip įvestas („pienas“), po jų kitos formos
@@ -1176,7 +1243,7 @@ function watchToggle(q, cls) {
   return b;
 }
 
-function watchRow(it, isNew) {
+function watchRow(it, isNew, w) {
   const r = el('div', 'wrow');
   tint(r, it.c);
   const a = el(it.l ? 'a' : 'div', 'wlink');
@@ -1199,6 +1266,12 @@ function watchRow(it, isNew) {
   b.onclick = () => { toggleBasket(it); paint(); };
   paint();
   r.append(a, b);
+  if (w) {   // „Netinka" – po aprašymo eilute, ne nuorodos viduje
+    const no = el('button', 'wno', 'Netinka'); no.type = 'button';
+    no.setAttribute('aria-label', `Netinka prie „${w.q}“: ${it.n}`);
+    no.onclick = () => hideItem(w, it);
+    r.append(no);
+  }
   return r;
 }
 
@@ -1269,12 +1342,55 @@ function renderWatch() {
     if (!hits.length) g.append(el('div', 'wnone', 'Akcijų šiuo metu nėra'));
     // pirmiausia naujos, tada pigiausios; rodomos 3, kitos – sąraše
     const shown = hits.slice().sort((a, b) => fresh.has(itemId(b)) - fresh.has(itemId(a))).slice(0, 3);
-    for (const it of shown) g.append(watchRow(it, fresh.has(itemId(it))));
+    for (const it of shown) g.append(watchRow(it, fresh.has(itemId(it)), w));
+    // ką tik paslėpus: pasiūlymas slėpti ir kitas su tuo pačiu žodžiu
+    if (HIDE_SUGG && HIDE_SUGG.key === watchKey(w.q) && HIDE_SUGG.words.length) {
+      const sg = el('div', 'wsugg');
+      sg.append(el('div', 'wsl', 'Slėpti ir kitas prekes su žodžiu:'));
+      const row = el('div', 'wsc');
+      for (const word of HIDE_SUGG.words) {
+        const c = el('button', 'chip sm', `${word.t} (${word.n})`); c.type = 'button';
+        c.setAttribute('aria-label', `Slėpti prekes su žodžiu „${word.t}“: ${word.n}`);
+        c.onclick = () => hideWord(w, word);
+        row.append(c);
+      }
+      const x = el('button', 'wsx', 'Ne, ačiū'); x.type = 'button'; x.onclick = () => { HIDE_SUGG = null; renderWatch(); };
+      row.append(x);
+      sg.append(row);
+      g.append(sg);
+    }
     if (hits.length > 3) {
       const more = el('button', 'wmore', `Rodyti visas ${hits.length} →`); more.type = 'button';
       more.onclick = () => { state.q = w.q; state.chain = null; state.page = 1; q.value = w.q;
         $('searchBox').classList.add('has-text'); setView('list'); };
       g.append(more);
+    }
+    // paslėptos prekės: sugrąžinamos bet kada
+    const hid = hiddenHits(w);
+    if (w.ex && (hid.length || w.ex.words.length)) {
+      const key = watchKey(w.q), open = HIDE_OPEN.has(key);
+      const t = el('button', 'whid', `Paslėpta: ${hid.length} ${prekes(hid.length)}`); t.type = 'button';
+      t.setAttribute('aria-expanded', String(open));
+      t.append(el('span', null, open ? ' · slėpti ▴' : ' · rodyti ▾'));
+      t.onclick = () => { open ? HIDE_OPEN.delete(key) : HIDE_OPEN.add(key); renderWatch(); };
+      g.append(t);
+      if (open) {
+        const box = el('div', 'whl');
+        for (const word of w.ex.words) {
+          const n = hid.filter(h => h.st.includes(word.s)).length;
+          const r = el('div', 'whr');
+          r.append(el('span', null, `Su žodžiu „${word.t}“ · ${n} ${prekes(n)}`));
+          const b = el('button', 'chip sm', 'Grąžinti'); b.type = 'button'; b.onclick = () => unhide(w, 'word', word.s);
+          r.append(b); box.append(r);
+        }
+        for (const it of hid.filter(h => w.ex.items.includes(exKey(h)))) {
+          const r = el('div', 'whr');
+          r.append(el('span', null, `${dispName(it.n)} · ${CHAINS[it.c]}`));
+          const b = el('button', 'chip sm', 'Grąžinti'); b.type = 'button'; b.onclick = () => unhide(w, 'item', exKey(it));
+          r.append(b); box.append(r);
+        }
+        g.append(box);
+      }
     }
     list.append(g);
   }
@@ -1298,7 +1414,8 @@ const byPrice = (a, b) => (a.p ?? Infinity) - (b.p ?? Infinity);
 const savingOf = it => (it && it.o > it.p ? it.o - it.p : 0);
 /* „Kur ir kada pirkti": kiekvienai stebimai prekei lyginama kaina už kg / l (jei jos nėra – pakuotės kaina)
    su pigiausia tarp tinklų tą dieną, kai ketinama apsipirkti. Tinklo balas – kiek arti pigiausių jo kainos
-   (pigiausia = 1, 25 % brangiau = 0,8, be akcijos = 0, kaina nežinoma – 0,5). Permoka eurais skaičiuojama
+   (pigiausia = 1, 25 % brangiau = 0,64, 70 % brangiau = 0,35, be akcijos = 0, kaina nežinoma – 0,5; kvadratu, kad
+   tinklas, kuriame visko yra, bet niekas nepigu, nenurungtų tinklo su pigiausiomis kainomis). Permoka eurais skaičiuojama
    tokiam pat kiekiui, kokio yra pigiausia pakuotė, todėl 170 g ir 500 g sviestas lyginami sąžiningai. */
 let REC_DAY = 0;   // apsipirkimo diena: 0 – šiandien, 1 – rytoj...
 let REC_MIN = 2;   // antra parduotuvė verta, jei sutaupo bent tiek eurų
@@ -1355,12 +1472,12 @@ function recommend() {
       if (!x) continue;
       pick.set(t.q, x.it);
       save += savingOf(x.it);
-      if (x.v != null && t.best) { score += t.best / x.v; pct += x.v / t.best - 1; k++; extra += over(t, c); if (x.v / t.best < 1.005) cheap++; }
+      if (x.v != null && t.best) { score += (t.best / x.v) ** 2; pct += x.v / t.best - 1; k++; extra += over(t, c); if (x.v / t.best < 1.005) cheap++; }
       else score += 0.5;
     }
     const end = [...pick.values()].map(it => it.t).filter(Boolean).sort()[0] || null;
     return { c, pick, n: pick.size, score, over: k ? pct / k : null, extra, end, save, cheap };
-  }).filter(x => x.n).sort((a, b) => b.score - a.score || b.n - a.n
+  }).filter(x => x.n).sort((a, b) => b.score - a.score || b.cheap - a.cheap || b.n - a.n
     || (b.end || '9999').localeCompare(a.end || '9999') || b.save - a.save);
   const best = chains[0];
   // dvi parduotuvės: geriausioji + viena papildoma, kiekviena prekė ten, kur pigiau. Rodoma, jei apima daugiau prekių
@@ -1378,7 +1495,7 @@ function recommend() {
       const useA = a && (!b || oa == null || (ob != null && oa <= ob));
       const x = useA ? a : b;
       pick.set(t.q, x.it);
-      score += x.v != null && t.best ? t.best / x.v : 0.5;
+      score += x.v != null && t.best ? (t.best / x.v) ** 2 : 0.5;
       if (!useA && a && oa != null && ob != null) gain += oa - ob;
     }
     if (new Set([...pick.values()].map(it => it.c)).size < 2) continue;
@@ -1530,6 +1647,18 @@ function recSeg(label, opts, cur, set) {   // mažas pasirinkimas kortelėje: �
   row.append(seg);
   return row;
 }
+// rekomendacijoje: lyginta prekė ir „Netinka" (paslepia ją prie tos stebimos prekės)
+function pickLine(q, it, inline = false) {
+  const w = findWatch(q), ln = el(inline ? 'span' : 'div', 'rn');
+  ln.append(el('span', 'rnn', dispName(it.n)));
+  if (w) {
+    const no = el('button', 'wno in', 'Netinka'); no.type = 'button';
+    no.setAttribute('aria-label', `Netinka prie „${w.q}“: ${it.n}`);
+    no.onclick = () => hideItem(w, it);
+    ln.append(no);
+  }
+  return ln;
+}
 function recCard() {
   const r = recommend();
   if (!WATCH.length) return null;
@@ -1579,7 +1708,7 @@ function recCard() {
           tag.title = `Pigiausia: ${CHAINS[cheapC]}`;
           tag.textContent += `, pigiausia ${CHAINS[cheapC]}`;
         }
-        row.append(el('span', 'rv', price + unit), tag);
+        row.append(el('span', 'rv', price + unit), tag, pickLine(t.q, it));   // kuri prekė lyginta + „Netinka"
       }
       list.append(row);
     }
@@ -1629,7 +1758,13 @@ function recCard() {
         const top = el('div', 'top');
         const s2 = el('span', 'store'); s2.append(el('span', 'dot'), CHAINS[ch.c]);
         top.append(s2, el('span', 'cn', `${ch.n} iš ${N} · ${cheapTxt(ch)}` + (ch.over >= 0.005 ? ` · ${pctTxt(ch.over)}` : '')));
-        row.append(top, el('div', 'rec-sub', [...ch.pick].map(([q, it]) => `${q} ${it.p != null ? priceTxt(it) : '−' + it.d + '%'}`).join(' · ')));
+        row.append(top);
+        for (const [q, it] of ch.pick) {   // kiekviena lyginta prekė atskirai, kad netinkamą būtų galima paslėpti
+          const ln = el('div', 'cmpi');
+          ln.append(el('b', null, q.charAt(0).toUpperCase() + q.slice(1)), ` ${it.p != null ? priceTxt(it) : '−' + it.d + '%'}`);
+          ln.append(pickLine(q, it, true));
+          row.append(ln);
+        }
         if (LOC && STORES) { const n = nearest(ch.c); if (n && n.big) row.append(nearLink(n.big)); }
         cmp.append(row);
       }
@@ -1665,6 +1800,7 @@ if (matchMedia('(pointer: coarse)').matches) {
 const TITLES = { list: 'Akcijos', watch: 'Mano prekės', basket: 'Pirkiniai' };
 async function setView(v) {
   state.view = v;
+  if (v !== 'watch') HIDE_SUGG = null;   // „Slėpti ir kitas…“ pasiūlymas – tik iš karto po paslėpimo
   kv.put('view', v);   // kitą kartą atsidarys ta pati skiltis
   document.body.classList.toggle('v-basket', v === 'basket');
   document.body.classList.toggle('v-watch', v === 'watch');
