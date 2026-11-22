@@ -37,7 +37,7 @@
   }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { margin:0; background:var(--bg); color:var(--text); }
-  body { font:16px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  body { font:1rem/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
          -webkit-font-smoothing:antialiased; min-height:100dvh; }
   button { font:inherit; color:inherit; }
 
@@ -47,10 +47,10 @@
   .brand { display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top) + 14px) 18px 4px; }
   .logo { width:32px; height:32px; border-radius:10px; flex-shrink:0;
           background:linear-gradient(135deg, #ff6a4d, #e0352b); display:grid; place-items:center;
-          color:#fff; font-weight:800; font-size:16px; box-shadow:0 4px 12px rgba(224,53,43,.35); }
-  .brand .sub { margin-left:auto; color:var(--muted); font-size:13px; }
+          color:#fff; font-weight:800; font-size:1rem; box-shadow:0 4px 12px rgba(224,53,43,.35); }
+  .brand .sub { margin-left:auto; color:var(--muted); font-size:0.8125rem; }
   .brand .sub.offline { color:var(--warn); font-weight:700; }
-  .brand h1 { font-size:22px; letter-spacing:-.02em; margin:0; font-weight:800; }
+  .brand h1 { font-size:1.375rem; letter-spacing:-.02em; margin:0; font-weight:800; }
   header {
     position:sticky; top:0; z-index:10; padding:10px 16px 8px;
     background:color-mix(in srgb, var(--bg) 85%, transparent);
@@ -63,7 +63,7 @@
   .search { position:relative; flex:1; min-width:0; }
   .search svg { position:absolute; left:15px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
   #q {
-    width:100%; height:50px; padding:0 46px 0 46px; font-size:17px;
+    width:100%; height:50px; padding:0 46px 0 46px; font-size:1.0625rem;
     border:1px solid var(--line); border-radius:15px; background:var(--surface); color:var(--text);
     box-shadow:var(--shadow); transition:border-color .15s, box-shadow .15s; -webkit-appearance:none; appearance:none;
   }
@@ -90,7 +90,7 @@
   .chip {
     position:relative; flex-shrink:0; display:inline-flex; align-items:center; gap:6px; height:40px; padding:0 14px;
     border:1px solid var(--line); border-radius:999px; background:var(--surface); cursor:pointer;
-    font-size:14px; font-weight:600; color:var(--text); transition:background .15s, border-color .15s, color .15s;
+    font-size:0.875rem; font-weight:600; color:var(--text); transition:background .15s, border-color .15s, color .15s;
   }
   .chip::after { content:""; position:absolute; inset:-3px -2px; }   /* paspaudžiama ~46 px */
   .chip .dot { width:8px; height:8px; border-radius:50%; background:var(--c); }
@@ -100,29 +100,29 @@
 
   main { padding:4px 16px calc(env(safe-area-inset-bottom) + 40px); }
   .stale { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin:6px 0 4px; padding:10px 14px; border-radius:14px;
-           background:var(--surface-2); color:var(--text); font-size:13.5px; line-height:1.4; }
+           background:var(--surface-2); color:var(--text); font-size:0.8438rem; line-height:1.4; }
   .stale.strong { background:var(--warn-soft); border:1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
   .stale .st-t { flex:1; min-width:200px; }
-  .stale small { display:block; margin-top:2px; color:var(--muted); font-size:12.5px; }
-  #status { color:var(--muted); font-size:13px; margin:6px 4px 10px; min-height:18px; }
+  .stale small { display:block; margin-top:2px; color:var(--muted); font-size:0.7812rem; }
+  #status { color:var(--muted); font-size:0.8125rem; margin:6px 4px 10px; min-height:18px; }
 
   /* ---------- Prisijungimas ---------- */
   [hidden] { display:none !important; }
   body.locked header, body.locked main, body.locked .brand { display:none; }
   .login { min-height:100dvh; display:grid; place-items:center; padding:24px 20px calc(env(safe-area-inset-bottom) + 24px); }
   .login-card { width:100%; max-width:360px; display:flex; flex-direction:column; align-items:center; text-align:center; }
-  .login-card .logo { width:56px; height:56px; border-radius:16px; font-size:26px; margin-bottom:14px; }
-  .login-card h2 { margin:0 0 6px; font-size:24px; letter-spacing:-.02em; }
-  .login-card p { margin:0 0 22px; color:var(--muted); font-size:14px; }
+  .login-card .logo { width:56px; height:56px; border-radius:16px; font-size:1.625rem; margin-bottom:14px; }
+  .login-card h2 { margin:0 0 6px; font-size:1.5rem; letter-spacing:-.02em; }
+  .login-card p { margin:0 0 22px; color:var(--muted); font-size:0.875rem; }
   #loginFields { width:100%; display:flex; flex-direction:column; gap:10px; }
-  #loginFields input { width:100%; height:50px; padding:0 16px; font-size:17px; border:1px solid var(--line); border-radius:14px;
+  #loginFields input { width:100%; height:50px; padding:0 16px; font-size:1.0625rem; border:1px solid var(--line); border-radius:14px;
                        background:var(--surface); color:var(--text); box-shadow:var(--shadow); -webkit-appearance:none; appearance:none; }
   #loginFields input:focus { outline:none; border-color:var(--muted); box-shadow:0 0 0 4px color-mix(in srgb, var(--text) 12%, transparent); }
   #loginFields .primary { margin-top:6px; }
   #loginFields .primary:disabled { opacity:.6; }
-  .lerr { color:var(--err); font-size:14px; min-height:20px; }
+  .lerr { color:var(--err); font-size:0.875rem; min-height:20px; }
   .secondary { width:100%; height:46px; margin-top:10px; border:0; border-radius:14px; background:transparent; color:var(--muted);
-               font-size:15px; font-weight:600; cursor:pointer; }
+               font-size:0.9375rem; font-weight:600; cursor:pointer; }
 
   /* ---------- Filtrų lapas ---------- */
   .sheet { border:0; padding:0; margin:auto auto 0; width:100%; max-width:520px; max-height:85dvh;
@@ -135,17 +135,17 @@
   @media (min-width:700px) { .sheet { margin:auto; border-radius:22px; } .sheet .grab { display:none; } }
   .sheet form { padding:10px 20px calc(env(safe-area-inset-bottom) + 18px); }
   .grab { width:40px; height:5px; border-radius:3px; background:var(--line); margin:0 auto 14px; }
-  .sheet h2 { font-size:18px; margin:0 0 16px; }
-  .field-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:8px; }
+  .sheet h2 { font-size:1.125rem; margin:0 0 16px; }
+  .field-label { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:8px; }
   .seg { display:flex; background:var(--surface-2); border-radius:12px; padding:3px; }
-  .seg button { flex:1; border:0; background:transparent; padding:12px 8px; min-height:44px; border-radius:9px; font-size:14px; font-weight:600;
+  .seg button { flex:1; border:0; background:transparent; padding:12px 8px; min-height:44px; border-radius:9px; font-size:0.875rem; font-weight:600;
                 color:var(--muted); cursor:pointer; }
   .seg button[aria-pressed="true"] { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.12); }
   @media (prefers-color-scheme: dark) {
     .seg { background:var(--bg); }
     .seg button[aria-pressed="true"] { background:color-mix(in srgb, var(--text) 16%, var(--surface)); box-shadow:none; }
   }
-  .toggle { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:15px; margin:18px 0 20px;
+  .toggle { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:0.9375rem; margin:18px 0 20px;
             padding:14px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); cursor:pointer; user-select:none; }
   .toggle input { appearance:none; -webkit-appearance:none; width:46px; height:28px; border-radius:999px; background:var(--line);
                   position:relative; cursor:pointer; transition:background .2s; margin:0; flex-shrink:0; }
@@ -154,7 +154,7 @@
   .toggle input:checked { background:var(--text); }
   .toggle input:checked::after { transform:translateX(18px); }
   .primary { width:100%; height:50px; border:0; border-radius:14px; background:var(--text); color:var(--bg);
-             font-size:16px; font-weight:700; cursor:pointer; }
+             font-size:1rem; font-weight:700; cursor:pointer; }
 
   /* ---------- Kortelės ---------- */
   #results { display:grid; gap:8px; }
@@ -169,7 +169,7 @@
   .card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c, var(--muted)); }
   .card.expired { opacity:.5; }
   @keyframes pop { from { opacity:0; transform:translateY(6px); } }
-  .top { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .top { display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--muted); }
   .store { display:inline-flex; align-items:center; gap:5px; font-weight:700; letter-spacing:.03em;
            text-transform:uppercase; color:var(--ct, var(--c)); }
   .store .dot { width:7px; height:7px; border-radius:50%; background:var(--c); }
@@ -179,41 +179,41 @@
   .when.soon { color:var(--warn); font-weight:600; }
   .body { display:flex; gap:12px; align-items:flex-start; }
   .info { flex:1; min-width:0; }
-  .name { font-weight:650; font-size:15.5px; line-height:1.3; margin:0 0 3px; overflow-wrap:anywhere;
+  .name { font-weight:650; font-size:0.9688rem; line-height:1.3; margin:0 0 3px; overflow-wrap:anywhere;
           display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-  .meta { color:var(--muted); font-size:13px; line-height:1.4; }
+  .meta { color:var(--muted); font-size:0.8125rem; line-height:1.4; }
   .cond-row { margin-top:6px; }
   .card.withslot .cond-row { margin-right:50px; }
-  .cond { display:inline-block; margin-top:0; font-size:12px; font-weight:600; color:var(--text);
+  .cond { display:inline-block; margin-top:0; font-size:0.75rem; font-weight:600; color:var(--text);
           background:var(--surface-2); padding:2px 7px; border-radius:6px; }
   .price { text-align:right; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
-  .now { font-size:24px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--text); font-variant-numeric:tabular-nums; }
+  .now { font-size:1.5rem; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--text); font-variant-numeric:tabular-nums; }
   .now small { font-size:.6em; font-weight:700; margin-left:1px; }
   .now small.from { font-size:.55em; font-weight:600; color:var(--muted); margin:0 3px 0 0; }
   .now.pct { color:var(--accent); }
   .was { display:flex; align-items:center; gap:6px; }
-  .old { color:var(--muted); text-decoration:line-through; font-size:13px; font-variant-numeric:tabular-nums; }
-  .na { color:var(--muted); font-size:12px; }
-  .badge { background:var(--badge); color:#fff; font-size:12px; font-weight:800; padding:2px 6px; border-radius:6px;
+  .old { color:var(--muted); text-decoration:line-through; font-size:0.8125rem; font-variant-numeric:tabular-nums; }
+  .na { color:var(--muted); font-size:0.75rem; }
+  .badge { background:var(--badge); color:#fff; font-size:0.75rem; font-weight:800; padding:2px 6px; border-radius:6px;
            font-variant-numeric:tabular-nums; }
-  .save { color:var(--good); font-size:12px; font-weight:600; white-space:nowrap; }
-  .warn { font-size:12px; color:var(--warn); background:var(--warn-soft); padding:5px 8px; border-radius:8px; }
+  .save { color:var(--good); font-size:0.75rem; font-weight:600; white-space:nowrap; }
+  .warn { font-size:0.75rem; color:var(--warn); background:var(--warn-soft); padding:5px 8px; border-radius:8px; }
 
   /* ---------- Tuščia būsena ---------- */
   .empty { text-align:center; padding:40px 12px 20px; color:var(--muted); }
-  .empty .big { font-size:44px; margin-bottom:6px; }
-  .empty h2 { color:var(--text); font-size:18px; margin:0 0 6px; }
-  .empty p { margin:0 0 18px; font-size:14px; }
+  .empty .big { font-size:2.75rem; margin-bottom:6px; }
+  .empty h2 { color:var(--text); font-size:1.125rem; margin:0 0 6px; }
+  .empty p { margin:0 0 18px; font-size:0.875rem; }
   .sugg { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
   .sugg .chip { font-weight:500; }
-  .section-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+  .section-label { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
                    margin:22px 0 10px; }
 
 
   #results.loading { opacity:.55; transition:opacity .15s; }
   .pager { display:flex; justify-content:center; align-items:center; gap:4px; margin:22px 0 4px; flex-wrap:wrap; }
   .pg { min-width:36px; height:40px; padding:0 8px; border:0; border-radius:11px; background:transparent;
-        font-size:15px; font-weight:600; color:var(--text); cursor:pointer; font-variant-numeric:tabular-nums;
+        font-size:0.9375rem; font-weight:600; color:var(--text); cursor:pointer; font-variant-numeric:tabular-nums;
         display:grid; place-items:center; }
   .pg:hover:not(:disabled) { background:var(--surface-2); }
   .pg[aria-current="page"] { background:var(--text); color:var(--bg); }
@@ -221,12 +221,26 @@
   .pg.nav:first-child { margin-right:6px; } .pg.nav:last-child { margin-left:6px; }
   .pg:disabled { opacity:.35; cursor:default; }
   .pager .gap { width:22px; text-align:center; color:var(--muted); }
-  .pager .chip.more { height:46px; padding:0 22px; font-size:15px; box-shadow:var(--shadow); }
+  .pager .chip.more { height:46px; padding:0 22px; font-size:0.9375rem; box-shadow:var(--shadow); }
   .empty > .chip { margin-top:4px; }
   .skel { height:118px; border-radius:var(--radius); background:linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
           background-size:200% 100%; animation:sh 1.1s linear infinite; }
   @keyframes sh { to { background-position:-200% 0; } }
-  @media (prefers-reduced-motion: reduce) { .card, .skel { animation:none; } }
+  @media (prefers-reduced-motion: reduce) {   /* visos animacijos ir perėjimai – ne tik kortelės */
+    *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important;
+                             transition-duration:.01ms !important; scroll-behavior:auto !important; }
+  }
+  .acct { width:44px; height:44px; margin:-6px -8px -6px 0; border:0; padding:0; cursor:pointer; display:grid; place-items:center;
+          font:inherit; font-weight:800; font-size:0.875rem; color:var(--text);
+          background:radial-gradient(circle, var(--surface-2) 15px, transparent 16px); }   /* 30 px ženkliukas, 44 px paspaudimo zona */
+  .rec-nocat { margin:4px 0 10px; font-size:0.8125rem; color:var(--muted); }
+  .acct-p { color:var(--muted); font-size:0.875rem; margin:4px 0 14px; }
+  .lwait { margin-top:10px; font-size:0.8125rem; color:var(--muted); }
+  .lwait i { display:block; height:4px; border-radius:2px; margin-bottom:8px; background:var(--surface-2); overflow:hidden; position:relative; }
+  .lwait i::after { content:""; position:absolute; inset:0 auto 0 0; width:35%; border-radius:2px; background:var(--accent, var(--text));
+                    animation:lw 1.1s ease-in-out infinite; }
+  @keyframes lw { from { left:-35%; } to { left:100%; } }
+  #lbtn.busy { opacity:.75; }
 
   /* ---------- Apatinė juosta: Akcijos / Krepšelis ---------- */
   main { padding-bottom:calc(env(safe-area-inset-bottom) + 96px); }
@@ -237,12 +251,12 @@
   body.locked .tabbar, body.typing .tabbar { display:none; }
   .tab { position:relative; flex:1; max-width:220px; border:0; background:transparent; border-radius:12px; cursor:pointer;
          display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0 4px;
-         font-size:11.5px; font-weight:650; color:var(--muted); }
+         font-size:0.7188rem; font-weight:650; color:var(--muted); }
   .tab[aria-selected="true"] { color:var(--text); }
   .tab svg { width:56px; height:30px; padding:3px 16px; border-radius:15px; transition:background .15s; box-sizing:border-box; }
   .tab[aria-selected="true"] svg { background:var(--surface-2); }
   .tab .cnt { position:absolute; top:0; left:calc(50% + 9px); min-width:18px; height:18px; padding:0 5px; border-radius:9px;
-              background:var(--badge); color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center;
+              background:var(--badge); color:#fff; font-size:0.6875rem; font-weight:800; display:grid; place-items:center;
               font-variant-numeric:tabular-nums; box-shadow:0 0 0 2px var(--surface); }
   .tab .cnt.bump { animation:bump .35s ease; }
   @keyframes bump { 50% { transform:scale(1.3); } }
@@ -266,7 +280,7 @@
   .slot.rm { border-color:transparent; background:transparent; color:var(--muted); }
 
   /* ---------- Krepšelis ---------- */
-  .grp .glbl { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text); }
+  .grp .glbl { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text); }
   .rstore { color:var(--ct, var(--c)); font-weight:700; }
   .pinx { text-decoration:none; color:var(--muted); }
   .pinx svg { width:19px; height:19px; }
@@ -285,31 +299,31 @@
   .brow.done::before { opacity:.35; }
   .bcard.done { box-shadow:none; background:transparent; border:1px solid var(--line); }
   .donebtn { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:44px; margin:14px 0 4px; padding:6px 2px; border:0;
-             background:transparent; font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+             background:transparent; font-size:0.8125rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
              color:var(--muted); cursor:pointer; }
-  .gone { font-size:12px; font-weight:700; color:var(--warn); white-space:nowrap; }
-  .wsub .soon { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; }
+  .gone { font-size:0.75rem; font-weight:700; color:var(--warn); white-space:nowrap; }
+  .wsub .soon { font-size:0.75rem; font-weight:600; color:var(--text); white-space:nowrap; }
   .toast { position:fixed; z-index:30; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 76px); max-width:480px;
            margin:0 auto; display:flex; align-items:center; gap:12px; padding:10px 8px 10px 16px; border-radius:14px;
-           background:var(--text); color:var(--bg); font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+           background:var(--text); color:var(--bg); font-size:0.875rem; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .toast.in { animation:tin .2s ease; }
   @keyframes tin { from { opacity:0; transform:translateY(8px); } }
   .toast .tmsg { flex:1; min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.35; }
-  .toast button { flex-shrink:0; border:0; background:transparent; color:inherit; font-weight:800; font-size:14px;
-                  padding:8px 10px; border-radius:10px; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+  .toast button { flex-shrink:0; border:0; background:transparent; color:inherit; font-weight:800; font-size:0.875rem;
+                  min-height:44px; padding:8px 10px; border-radius:10px; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
   .sum { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; margin:6px 0 4px; }
   .sum .row { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-  .sum .total { font-size:28px; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
-  .sum .lbl { color:var(--muted); font-size:13px; }
+  .sum .total { font-size:1.75rem; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .sum .lbl { color:var(--muted); font-size:0.8125rem; }
   .bar { height:6px; border-radius:3px; background:var(--surface-2); margin:12px 0 6px; overflow:hidden; }
   .bar > i { display:block; height:100%; background:var(--good); border-radius:3px; transition:width .3s; }
-  .grp { display:flex; align-items:center; gap:8px; margin:20px 2px 8px; font-size:13px; color:var(--muted); }
-  .grp .store { font-size:13px; }
-  .bsplit { padding:10px 16px 6px; border-top:1px solid var(--line); font-size:12px; font-weight:700; color:var(--muted);
+  .grp { display:flex; align-items:center; gap:8px; margin:20px 2px 8px; font-size:0.8125rem; color:var(--muted); }
+  .grp .store { font-size:0.8125rem; }
+  .bsplit { padding:10px 16px 6px; border-top:1px solid var(--line); font-size:0.75rem; font-weight:700; color:var(--muted);
             background:var(--surface-2); text-transform:uppercase; letter-spacing:.04em; }
   .bsplit.warn { color:var(--warn); }
-  .bsplit small { display:block; margin-top:2px; font-size:12px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--muted); }
-  .rec-main .ends { font-size:13px; font-weight:700; color:var(--warn); white-space:nowrap; }
+  .bsplit small { display:block; margin-top:2px; font-size:0.75rem; font-weight:500; text-transform:none; letter-spacing:0; color:var(--muted); }
+  .rec-main .ends { font-size:0.8125rem; font-weight:700; color:var(--warn); white-space:nowrap; }
   .rec-alt { margin-top:8px; }
   .grp .gsum { margin-left:auto; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
   .blist { display:grid; gap:8px; }
@@ -320,13 +334,13 @@
   /* ---------- Stebimos prekės ---------- */
   body.v-watch header { display:none; }
   #status { display:flex; align-items:center; gap:8px; }
-  .wbtn { margin-left:auto; border:0; background:transparent; color:var(--text); font-size:13px; font-weight:700;
+  .wbtn { margin-left:auto; border:0; background:transparent; color:var(--text); font-size:0.8125rem; font-weight:700;
           padding:6px 2px; cursor:pointer; white-space:nowrap; }
   .wadd { display:flex; gap:8px; margin:6px 0 6px; }
-  .wadd input { flex:1; min-width:0; height:50px; padding:0 16px; font-size:17px; border:1px solid var(--line); border-radius:15px;
+  .wadd input { flex:1; min-width:0; height:50px; padding:0 16px; font-size:1.0625rem; border:1px solid var(--line); border-radius:15px;
                 background:var(--surface); color:var(--text); box-shadow:var(--shadow); -webkit-appearance:none; appearance:none; }
   .wadd input:focus { outline:none; border-color:var(--muted); box-shadow:0 0 0 4px color-mix(in srgb, var(--text) 12%, transparent); }
-  .wsum { color:var(--muted); font-size:13px; margin:8px 4px 10px; }
+  .wsum { color:var(--muted); font-size:0.8125rem; margin:8px 4px 10px; }
   .wlist { display:grid; gap:10px; align-items:start; }
   @media (min-width:700px) { .wlist { grid-template-columns:1fr 1fr; } }
   .wg.flash { animation:wflash 1.8s ease; scroll-margin-bottom:170px; }   /* virš pranešimo */
@@ -335,131 +349,144 @@
   .wg { background:var(--surface); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; animation:pop .25s ease both; }
   .wg.none { background:transparent; box-shadow:none; border:1px dashed var(--line); }
   .wh { display:flex; align-items:center; gap:8px; padding:8px 6px 8px 14px; min-height:48px; }
-  .wh h3 { margin:0; font-size:16px; font-weight:750; letter-spacing:-.01em; overflow-wrap:anywhere; }
+  .wh h3 { margin:0; font-size:1rem; font-weight:750; letter-spacing:-.01em; overflow-wrap:anywhere; }
   .wg.none .wh h3 { color:var(--muted); font-weight:650; }
-  .wh .wm { margin-left:auto; color:var(--muted); font-size:12.5px; text-align:right; white-space:nowrap; }
+  .wh .wm { margin-left:auto; color:var(--muted); font-size:0.7812rem; text-align:right; white-space:nowrap; }
   .wh .wm b { color:var(--text); font-weight:700; }
   .wx { width:44px; height:44px; flex-shrink:0; border:0; border-radius:10px; background:transparent; color:var(--muted);
         display:grid; place-items:center; cursor:pointer; }
   .wx:hover { background:var(--surface-2); }
-  .new { font-size:11px; font-weight:800; color:var(--good); background:color-mix(in srgb, var(--good) 14%, transparent);
+  .new { font-size:0.6875rem; font-weight:800; color:var(--good); background:color-mix(in srgb, var(--good) 14%, transparent);
          padding:2px 6px; border-radius:6px; white-space:nowrap; }
   .wrow { display:flex; align-items:center; gap:4px; border-top:1px solid var(--line); padding-right:8px; }
   .wlink { flex:1; min-width:0; display:flex; align-items:center; gap:8px; padding:9px 4px 9px 14px; color:inherit; text-decoration:none; }
   .wlink .dot { width:8px; height:8px; border-radius:50%; background:var(--c); flex-shrink:0; }
   .wi { flex:1; min-width:0; }
-  .wn { font-size:14px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  .wn { font-size:0.875rem; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
         overflow-wrap:anywhere; }
-  .wsub { display:flex; align-items:center; flex-wrap:wrap; gap:2px 6px; margin-top:2px; color:var(--muted); font-size:12px; min-width:0; }
+  .wsub { display:flex; align-items:center; flex-wrap:wrap; gap:2px 6px; margin-top:2px; color:var(--muted); font-size:0.75rem; min-width:0; }
   .wsub span:first-child { overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow-wrap:break-word; }
   .wpr { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
-  .wp { font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.02em; line-height:1; }
-  .wpr .badge { font-size:11px; padding:1px 5px; }
+  .wp { font-weight:800; font-size:1rem; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.02em; line-height:1; }
+  .wpr .badge { font-size:0.6875rem; padding:1px 5px; }
   .wrow { flex-wrap:wrap; }
   .wno { flex-basis:100%; margin:-8px 0 2px; padding:4px 0 6px 30px; border:0; background:none; text-align:left; font:inherit;
-         font-size:12px; color:var(--muted); text-decoration:underline; text-underline-offset:2px; cursor:pointer; min-height:28px; }
+         font-size:0.75rem; color:var(--muted); text-decoration:underline; text-underline-offset:2px; cursor:pointer; min-height:28px; position:relative; }
+  .wno::after { content:""; position:absolute; inset:-8px 0; }   /* paspaudžiama 44 px, nors tekstas mažas */
+  .wno.in::after { inset:-12px -8px; }
+  .near-mini { position:relative; }
+  .near-mini::after { content:""; position:absolute; inset:-4px 0; }
   .wsugg { border-top:1px solid var(--line); padding:10px 14px 12px; background:var(--surface-2); }
-  .wsl { font-size:13px; color:var(--muted); margin-bottom:8px; }
+  .wsl { font-size:0.8125rem; color:var(--muted); margin-bottom:8px; }
   .wsc { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .chip.sm { min-height:34px; padding:0 12px; font-size:13px; }
-  .wsx { border:0; background:none; color:var(--muted); font:inherit; font-size:13px; padding:6px 8px; cursor:pointer; text-decoration:underline; }
+  .chip.sm { min-height:34px; padding:0 12px; font-size:0.8125rem; }
+  .wsx { border:0; background:none; color:var(--muted); font:inherit; font-size:0.8125rem; padding:6px 8px; cursor:pointer; text-decoration:underline; }
   .whid { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left; font:inherit;
-          padding:10px 14px; min-height:40px; font-size:13px; color:var(--muted); cursor:pointer; }
+          padding:10px 14px; min-height:40px; font-size:0.8125rem; color:var(--muted); cursor:pointer; }
   .whid span { color:var(--text); font-weight:600; }
   .whl { padding:0 14px 10px; display:grid; gap:6px; }
-  .whr { display:flex; align-items:center; gap:10px; justify-content:space-between; font-size:13px; }
+  .whr { display:flex; align-items:center; gap:10px; justify-content:space-between; font-size:0.8125rem; }
   .whr span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .wcart { position:relative; right:auto; bottom:auto; width:36px; height:36px; flex-shrink:0; }   /* .slot poslinkiai čia netaikomi */
   .wcart::after { inset:-5px; }
   .wcart svg { width:19px; height:19px; }
   .wmore { display:block; width:100%; border:0; border-top:1px solid var(--line); background:transparent; text-align:left;
-           padding:12px 14px; min-height:44px; font-size:14px; font-weight:650; color:var(--text); cursor:pointer; }
-  .wmore .wmo { font-weight:500; color:var(--muted); font-size:13px; }
-  .wnone { padding:0 14px 12px; margin-top:-6px; font-size:13px; color:var(--muted); }
+           padding:12px 14px; min-height:44px; font-size:0.875rem; font-weight:650; color:var(--text); cursor:pointer; }
+  .wmore .wmo { font-weight:500; color:var(--muted); font-size:0.8125rem; }
+  .wnone { padding:0 14px 12px; margin-top:-6px; font-size:0.8125rem; color:var(--muted); }
 
   /* ---------- Kur apsipirkti ---------- */
   .rec { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px 12px; margin:0 0 12px;
          border:1.5px solid color-mix(in srgb, var(--c) 45%, transparent); }
-  .rec-l { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .rec-l { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
   .rec-main { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; margin:4px 0 2px; }
   .rec.closed { padding-bottom:12px; }
   .rec-head { display:flex; align-items:center; gap:10px; width:100%; border:0; background:transparent; padding:0; margin:0;
               text-align:left; color:inherit; font:inherit; cursor:pointer; }
   .rec-ht { flex:1; min-width:0; }
   .rec-head .chev { flex-shrink:0; width:32px; height:32px; border-radius:10px; background:var(--surface-2); display:grid;
-                    place-items:center; font-size:13px; color:var(--text); }
-  .rec-main .dist { font-size:13.5px; font-weight:650; color:var(--text); white-space:nowrap; }
-  .rec-main .store { font-size:19px; letter-spacing:-.01em; text-transform:none; }
+                    place-items:center; font-size:0.8125rem; color:var(--text); }
+  .rec-main .dist { font-size:0.8438rem; font-weight:650; color:var(--text); white-space:nowrap; }
+  .rec-main .store { font-size:1.1875rem; letter-spacing:-.01em; text-transform:none; }
   .rec-main .store .dot { width:10px; height:10px; }
-  .rec-main .cov { font-weight:700; font-size:14.5px; }
-  .rec-main .save { font-size:13.5px; }
+  .rec-main .cov { font-weight:700; font-size:0.9062rem; }
+  .rec-main .save { font-size:0.8438rem; }
   .rec .rec-sub:first-of-type { margin-top:8px; }
-  .rec-sub { color:var(--muted); font-size:13px; line-height:1.45; }
+  .rec-sub { color:var(--muted); font-size:0.8125rem; line-height:1.45; }
   .rec-sub b { color:var(--text); font-weight:600; }
   .rec-sub b.warnt { color:var(--warn); }
   .near { display:flex; align-items:center; gap:10px; margin-top:10px; padding:10px 12px; border-radius:12px; background:var(--surface-2);
-          color:inherit; text-decoration:none; font-size:14px; line-height:1.35; }
+          color:inherit; text-decoration:none; font-size:0.875rem; line-height:1.35; }
   .near .pin { flex-shrink:0; display:grid; place-items:center; color:var(--muted); }
   .near .pin svg { width:20px; height:20px; }
   .ico { display:inline-grid; vertical-align:-3px; margin-right:3px; }
   .ico svg { width:14px; height:14px; }
   .near .ni { flex:1; min-width:0; }
-  .near .ni small { display:block; color:var(--muted); font-size:12.5px; }
-  .near .go { flex-shrink:0; font-weight:700; color:var(--text); font-size:14px; }
-  .near.small { background:transparent; border:1px dashed var(--line); padding:7px 12px; margin-top:6px; font-size:12.5px; color:var(--muted); }
+  .near .ni small { display:block; color:var(--muted); font-size:0.7812rem; }
+  .near .go { flex-shrink:0; font-weight:700; color:var(--text); font-size:0.875rem; }
+  .near.small { background:transparent; border:1px dashed var(--line); padding:7px 12px; margin-top:6px; font-size:0.7812rem; color:var(--muted); }
   button.near { width:100%; border:0; cursor:pointer; text-align:left; font:inherit; }
   .near-city { display:block; width:100%; margin-top:6px; padding:9px 12px; border-radius:12px; border:1px solid var(--line);
-    background:var(--surface-2); color:inherit; font:inherit; font-size:14px; }
+    background:var(--surface-2); color:inherit; font:inherit; font-size:0.875rem; }
   .near-change { display:inline-flex; align-items:center; min-height:44px; margin-top:0; padding:0 2px; border:0; background:none; color:var(--muted);
-    font:inherit; font-size:12.5px; text-decoration:underline; cursor:pointer; }
-  .rec-main .lvl { font-size:13.5px; font-weight:600; color:var(--muted); white-space:nowrap; }
+    font:inherit; font-size:0.7812rem; text-decoration:underline; cursor:pointer; }
+  .rec-main .lvl { font-size:0.8438rem; font-weight:600; color:var(--muted); white-space:nowrap; }
   .rec-opt { display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; margin-top:10px; }
   .rec-opt .seg.sm { min-width:200px; }
-  .rec-ol { font-size:12.5px; color:var(--muted); flex-shrink:0; }
+  .rec-ol { font-size:0.7812rem; color:var(--muted); flex-shrink:0; }
   .seg.sm { flex:1; padding:2px; border-radius:10px; }
-  .seg.sm button { padding:6px 4px; min-height:36px; font-size:13px; border-radius:8px; }
+  .seg.sm button { padding:6px 4px; min-height:44px; font-size:0.8125rem; border-radius:8px; }
   .rec-rows { margin-top:10px; display:grid; gap:0; border-top:1px solid var(--line); }
-  .rr { display:grid; grid-template-columns:minmax(70px, 1fr) auto; gap:0 10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .rr { display:grid; grid-template-columns:minmax(70px, 1fr) auto; gap:0 10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:0.8438rem; }
   .rr .rq { font-weight:650; }
   .rr .rq::first-letter { text-transform:uppercase; }
   .rr .rv { text-align:right; font-variant-numeric:tabular-nums; }
-  .rr .rt { grid-column:1 / -1; font-size:12.5px; color:var(--warn); font-weight:600; }
+  .rr .rt { grid-column:1 / -1; font-size:0.7812rem; color:var(--warn); font-weight:600; }
   .rr .rt.good { color:var(--good); }
   .rr .muted, .rr .rt.muted { color:var(--muted); font-weight:500; }
-  .rr .rn { grid-column:1 / -1; display:flex; align-items:baseline; gap:8px; font-size:12px; color:var(--muted); min-width:0; }
+  .rr .rn { grid-column:1 / -1; display:flex; align-items:baseline; gap:8px; font-size:0.75rem; color:var(--muted); min-width:0; }
   .rn .rnn { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .wno.in { flex:none; flex-basis:auto; margin:0; padding:2px 0; min-height:0; }
-  .cmpi { font-size:12.5px; line-height:1.4; padding:3px 0; }
+  .cmpi { font-size:0.7812rem; line-height:1.4; padding:3px 0; }
   .cmpi .rn { display:flex; gap:8px; margin-top:1px; min-width:0; }
   .rn .rnn { flex:0 1 auto; }
   .rec-tb { display:block; width:100%; margin-top:12px; min-height:46px; border:0; border-radius:12px; background:var(--text); color:var(--bg);
-            font:inherit; font-size:15px; font-weight:700; cursor:pointer; }
+            font:inherit; font-size:0.9375rem; font-weight:700; cursor:pointer; }
   .rec-tb.sec { background:transparent; color:var(--text); border:1.5px solid var(--line); margin-top:10px; }
-  .tb-sub { margin:-10px 0 12px; color:var(--muted); font-size:13.5px; }
+  .tb-sub { margin:-10px 0 12px; color:var(--muted); font-size:0.8438rem; }
   .tb-list { display:grid; gap:0; border-top:1px solid var(--line); margin-bottom:14px; max-height:52dvh; overflow:auto; }
   .tb-row { display:flex; gap:12px; align-items:flex-start; padding:11px 2px; border-bottom:1px solid var(--line); cursor:pointer; }
   .tb-row input { width:22px; height:22px; margin:1px 0 0; flex-shrink:0; accent-color:var(--text); }
   .tb-row.off { opacity:.55; cursor:default; }
-  .tb-t { display:grid; gap:2px; min-width:0; font-size:14px; }
-  .tb-l { color:var(--muted); font-size:13px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .tb-t { display:grid; gap:2px; min-width:0; font-size:0.875rem; }
+  .tb-l { color:var(--muted); font-size:0.8125rem; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
   .tb-l.plain { font-style:italic; }
-  .tb-n { font-size:12px; font-weight:650; color:var(--warn); }
-  .rec-note { margin-top:4px; font-size:11.5px; color:var(--muted); }
-  .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:14px; }
+  .tb-n { font-size:0.75rem; font-weight:650; color:var(--warn); }
+  .rec-note { margin-top:4px; font-size:0.7188rem; color:var(--muted); }
+  .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:0.875rem; }
   .rec-combo b { font-weight:700; }
-  .rec-more { display:block; width:100%; margin-top:0; border:0; background:transparent; color:var(--text); font-size:14px;
+  .rec-more { display:block; width:100%; margin-top:0; border:0; background:transparent; color:var(--text); font-size:0.875rem;
               font-weight:650; text-align:left; padding:4px 0; min-height:44px; cursor:pointer; }
   .cmp { margin-top:6px; display:grid; gap:2px; }
   .cmp-row { padding:10px 0; border-top:1px solid var(--line); }
   .cmp-row .top { margin-bottom:2px; }
-  .cmp-row .store { font-size:13px; }
+  .cmp-row .store { font-size:0.8125rem; }
   .cmp-row { min-width:0; }
   .cmp-row .top { flex-wrap:wrap; }
-  .cmp-row .cn { margin-left:auto; font-weight:700; color:var(--text); font-size:13px; text-align:right; }
-  .cmp-row .near { margin-top:6px; padding:8px 10px; font-size:13px; }
-  .osm { color:var(--muted); font-size:11px; margin-top:8px; }
-  .near-mini { color:var(--text); font-weight:650; font-size:12.5px; text-decoration:none; white-space:nowrap; border:0;
+  .cmp-row .cn { margin-left:auto; font-weight:700; color:var(--text); font-size:0.8125rem; text-align:right; }
+  .cmp-row .near { margin-top:6px; padding:8px 10px; font-size:0.8125rem; }
+  .osm { color:var(--muted); font-size:0.6875rem; margin-top:8px; }
+  .near-mini { color:var(--text); font-weight:650; font-size:0.7812rem; text-decoration:none; white-space:nowrap; border:0;
                background:transparent; padding:10px 4px; margin:-6px 0; cursor:pointer; }
+  /* gulsčias telefonas: paieška ir tinklai slenka kartu su turiniu, apatinė juosta žemesnė */
+  @media (orientation: landscape) and (max-height: 500px) {
+    header { position:static; }
+    .brand { padding-top:8px; }
+    .tab { flex-direction:row; justify-content:center; gap:6px; padding:4px 0; }
+    .tab svg { width:44px; height:26px; padding:2px 10px; }
+    .tab .cnt { left:auto; right:8px; top:50%; transform:translateY(-50%); }
+    main { padding-bottom:calc(env(safe-area-inset-bottom) + 64px); }
+  }
 </style>
 </head>
 <body>
@@ -467,6 +494,7 @@
   <div class="logo">%</div>
   <h1>Akcijos</h1>
   <span class="sub" id="updated"></span>
+  <button class="acct" id="acct" type="button" hidden></button>
 </div>
 
 <header>
@@ -492,28 +520,30 @@
 
 <main>
   <div class="wrap">
-    <div id="stale" class="stale" role="status" hidden></div>
-    <div id="status" aria-live="polite"></div>
-    <div id="results"></div>
-    <nav class="pager" id="pager" aria-label="Puslapiai"></nav>
-    <div id="watchView" hidden></div>
-    <div id="basketView" hidden></div>
+    <div id="listView" role="tabpanel" aria-labelledby="tab-list">
+      <div id="stale" class="stale" role="status" hidden></div>
+      <div id="status" aria-live="polite"></div>
+      <div id="results"></div>
+      <nav class="pager" id="pager" aria-label="Puslapiai"></nav>
+    </div>
+    <div id="watchView" role="tabpanel" aria-labelledby="tab-watch" hidden></div>
+    <div id="basketView" role="tabpanel" aria-labelledby="tab-basket" hidden></div>
   </div>
 </main>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <nav class="tabbar" role="tablist" aria-label="Skiltys">
-  <button class="tab" role="tab" data-view="list" type="button">
+  <button class="tab" role="tab" id="tab-list" aria-controls="listView" data-view="list" type="button">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
     Akcijos
   </button>
-  <button class="tab" role="tab" data-view="watch" type="button">
+  <button class="tab" role="tab" id="tab-watch" aria-controls="watchView" data-view="watch" type="button">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.6 6.2.9-4.5 4.4 1 6.1-5.5-2.9-5.5 2.9 1-6.1L3 9.5l6.2-.9Z"/></svg>
     Mano prekės
     <span class="cnt" id="watchCount" hidden></span>
   </button>
-  <button class="tab" role="tab" data-view="basket" type="button">
+  <button class="tab" role="tab" id="tab-basket" aria-controls="basketView" data-view="basket" type="button">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.5 1.5L7.5 5M3.5 12l1.5 1.5 2.5-2.5M3.5 18l1.5 1.5 2.5-2.5"/></svg>
     Pirkiniai
     <span class="cnt" id="basketCount" hidden></span>
@@ -529,6 +559,7 @@
       <input id="lname" name="username" aria-label="Vardas" autocomplete="username" placeholder="Vardas" required autocapitalize="words" spellcheck="false">
       <input id="lpass" name="password" aria-label="Slaptažodis" type="password" autocomplete="current-password" placeholder="Slaptažodis" required>
       <button class="primary" id="lbtn">Prisijungti</button>
+      <div id="lwait" class="lwait" hidden><i></i><span>Slaptažodis tikrinamas saugiai – telefone tai gali užtrukti iki 10 s.</span></div>
       <div id="lerr" class="lerr" aria-live="polite"></div>
     </div>
   </form>
@@ -625,6 +656,25 @@ const kv = {
     } catch {}
   },
 };
+const LOGIN_DAYS = 90;
+/* paskyros mygtukas antraštėje (vardo raidė): „Prisijungta kaip …“ ir „Atsijungti“ */
+function showAcct(name) {
+  const b = $('acct'); b.hidden = false;
+  b.textContent = name ? name.trim()[0].toUpperCase() : '👤';
+  b.setAttribute('aria-label', name ? `Paskyra: ${name}` : 'Paskyra');
+  b.onclick = () => {
+    let dlg = $('acctDlg');
+    if (!dlg) { dlg = el('dialog', 'sheet'); dlg.id = 'acctDlg'; dlg.setAttribute('aria-labelledby', 'acctTitle'); document.body.append(dlg);
+                dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); }); }
+    const f = el('form'); f.method = 'dialog';
+    const h = el('h2', null, name ? `Prisijungta kaip ${name}` : 'Prisijungta'); h.id = 'acctTitle';
+    const out = el('button', 'primary', 'Atsijungti'); out.type = 'button';
+    out.onclick = async () => { await kv.put('login'); location.reload(); };
+    const no = el('button', 'secondary', 'Uždaryti'); no.value = 'close';
+    f.append(el('div', 'grab'), h, el('p', 'acct-p', `Atsijunkite, jei telefonu naudojasi ir kiti. Prisijungimas savaime baigiasi po ${LOGIN_DAYS} d.`), out, no);
+    dlg.replaceChildren(f); dlg.showModal();
+  };
+}
 function showLogin(msg, closed = false) {
   document.body.classList.add('locked');
   $('login').hidden = false;
@@ -644,7 +694,13 @@ async function unlock(env) {
     return new Promise(() => {});
   }
   const saved = await kv.get('login');
+  if (saved && saved.at && Date.now() - saved.at > LOGIN_DAYS * 864e5) {   // bendrai naudojamame telefone prieiga nesitęsia be galo
+    await kv.put('login');
+    return askLogin(env, `Prisijungimas galiojo ${LOGIN_DAYS} d. – prisijunkite iš naujo.`);
+  }
   if (saved) {
+    if (!saved.at) kv.put('login', { ...saved, at: Date.now() });   // seniau išsaugotas – galiojimas skaičiuojamas nuo dabar
+    showAcct(saved.name);
     try { return await openEnvelope(env, saved.kek, saved.h); }
     catch { await kv.put('login'); return askLogin(env, 'Prieiga pasikeitė – prisijunkite iš naujo.'); }
   }
@@ -656,21 +712,24 @@ function askLogin(env, msg) {
     $('loginForm').onsubmit = async e => {
       e.preventDefault();
       const btn = $('lbtn');
-      btn.disabled = true; btn.textContent = 'Tikrinama…'; $('lerr').textContent = '';
+      btn.disabled = true; btn.textContent = 'Tikrinama…'; btn.classList.add('busy'); $('lerr').textContent = '';
+      const wait = setTimeout(() => { $('lwait').hidden = false; }, 800);   // ilgiau trunkant – paaiškinimas ir eigos juosta
       try {
         const h = await userHash($('lname').value);
         const u = env.users.find(x => x.h === h);
         if (!u) throw new Error();
         const kek = await deriveKek($('lpass').value, b64(u.salt), u.it);
         const data = await openEnvelope(env, kek, h);
-        await kv.put('login', { h, kek });
+        await kv.put('login', { h, kek, name: $('lname').value.trim(), at: Date.now() });
+        showAcct($('lname').value.trim());
         $('lpass').value = '';
         hideLogin();
         resolve(data);
       } catch {
         $('lerr').textContent = 'Neteisingas vardas arba slaptažodis.';
       }
-      btn.disabled = false; btn.textContent = 'Prisijungti';
+      clearTimeout(wait); $('lwait').hidden = true;
+      btn.disabled = false; btn.textContent = 'Prisijungti'; btn.classList.remove('busy');
     };
   });
 }
@@ -779,7 +838,8 @@ const SIDE_AFTER = new Set(['skonio', 'idaru', 'idaro', 'padazu', 'padaze', 'aro
 // bet ne „vištienos filė", „sūrio lazdelės" ar „sviesto kepiniai" – jie sąraše nėra
 const MOD_HEADS = new Set(['gerimas', 'gerimai', 'sokoladas', 'sokoladai', 'sultinys', 'sultinio', 'padazas', 'desertas', 'desertai',
   'kremas', 'uzpilas', 'traskuciai', 'skonis', 'jogurtas', 'jogurtai', 'sausainiai', 'batonelis', 'batoneliai', 'ledai', 'kokteilis',
-  'saldainiai', 'kubeliai', 'prieskoniai', 'aromatas', 'suris', 'misinys', 'produktai'].map(x => stem(x)));
+  'saldainiai', 'kubeliai', 'prieskoniai', 'aromatas', 'suris', 'misinys', 'produktai',
+  'zvaigzdes'].map(x => stem(x)));   // „zvaigzdes“ – prekės ženklas „PIENO ŽVAIGŽDĖS“
 function sideAfter(it, j) {   // „bananų ir braškių skonio": iki 3 žodžių į priekį, bet ne už „su" („sūris su kumpio skonio")
   for (let k = j + 1; k <= j + 3 && k < it.w.length; k++) {
     if (it.w[k] === 'su') return false;
@@ -791,7 +851,37 @@ function primaryHit(it, tok, raw) {
   return it.w.some((w, j) => (it.st[j] === tok || w.startsWith(raw))
     && !it.w.slice(Math.max(0, j - 5), j).some(x => SIDE_BEFORE.has(x)) && !sideAfter(it, j)
     && !SIDE_FOR.has(it.w[j - 1]) && !SIDE_FOR.has(it.w[j - 2])   // „Sausainiai PRIE KAVOS“, „skirta kavai“
-    && !(w !== raw && j + 1 < it.w.length && MOD_HEADS.has(it.st[j + 1])));
+    && !(w !== raw && modAfter(it, j))
+    && !(w !== raw && dativeOf(raw).includes(w)   // „Sirupas kavai“, „Padažas … vištienai“ – skirta tam, ne pati prekė,
+         && it.w.slice(Math.max(0, j - 3), j).some(x => x.length > 3 && /(as|is|ys|us)$/.test(x) && !/aus$/.test(x))   /* „stiliaus“ – kilmininkas */));   // bet ne „Tirpiajai kavai JACOBS“ (nuolaida kavai)
+}
+// naudininkas (kam?): iš įvesto žodžio – kava→kavai, sūris→sūriui, kumpis→kumpiui, medus→medui, dešrelės→dešrelėms.
+// Šalutinis tik tada, kai prieš jį yra daiktavardis vardininku („Sirupas“): leidinių grupių antraštės („Maltai kavai“,
+// „Sumuštinių duonai“) reiškia nuolaidą pačiai prekei
+function dativeOf(r) {
+  const out = [];
+  if (/[^i]a$/.test(r)) out.push(r.slice(0, -1) + 'ai');
+  if (/ia$/.test(r)) out.push(r.slice(0, -1) + 'ai');
+  if (/e$/.test(r)) out.push(r.slice(0, -1) + 'ei');
+  if (/[^i]as$/.test(r)) out.push(r.slice(0, -2) + 'ui');
+  if (/ias$/.test(r)) out.push(r.slice(0, -3) + 'iui');
+  if (/[iy]s$/.test(r)) out.push(r.slice(0, -2) + 'iui');
+  if (/us$/.test(r)) out.push(r.slice(0, -2) + 'ui');
+  if (/os$/.test(r)) out.push(r.slice(0, -2) + 'oms');
+  if (/es$/.test(r)) out.push(r.slice(0, -2) + 'ems');
+  if (/iai$/.test(r)) out.push(r.slice(0, -3) + 'iams');
+  else if (/ai$/.test(r)) out.push(r.slice(0, -2) + 'ams');
+  return out;
+}
+// „Vištienos; daržovių sultinio kubeliai“: apibūdinantis žodis gali būti išvardijimo pradžia – iki 3 žodžių į priekį
+// per kitas kilmininko formas („daržovių“, „sūrio ir“) ieškoma MOD_HEADS žodžio
+function modAfter(it, j) {
+  for (let k = j + 1; k <= j + 3 && k < it.w.length; k++) {
+    const gen = /(os|es|io|iu|ies|ir|arba)$/.test(it.w[k]);
+    if (MOD_HEADS.has(it.st[k]) && (k === j + 1 || !gen)) return true;   // toliau – tik vardininkas („…sultinio kubeliai“)
+    if (!gen) return false;
+  }
+  return false;
 }
 
 // ta pati paieška naudojama sąraše ir stebimose prekėse
@@ -986,7 +1076,7 @@ async function loadBasket() {
 }
 function saveBasket(bump) { kv.put('basket', BASKET); updateCount(bump); }
 function updateCount(bump) {
-  const n = BASKET.filter(b => !b.done).length, c = $('basketCount');
+  const n = BASKET.filter(b => !b.done && !gone(b)).length, c = $('basketCount');   // pasibaigusios akcijos neskaičiuojamos
   c.hidden = !n; c.textContent = n;
   if (bump) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
 }
@@ -1175,6 +1265,16 @@ function renderBasket() {
   }
 
   const act = el('div', 'bactions');
+  const old = left.filter(gone);
+  if (old.length) {
+    const b = el('button', 'chip', `Pašalinti pasibaigusias (${old.length})`); b.type = 'button';
+    b.onclick = () => {
+      const prev = BASKET.slice();
+      BASKET = BASKET.filter(x => x.done || !gone(x)); saveBasket(); renderBasket();
+      toast(`Pašalinta ${old.length} ${prekes(old.length)}`, () => { BASKET = prev; saveBasket(); renderBasket(); });
+    };
+    act.append(b);
+  }
   if (done.length) {
     const b = el('button', 'chip', `Pašalinti nupirktas (${done.length})`); b.type = 'button';
     b.onclick = () => {
@@ -1780,7 +1880,7 @@ const WD_SHORT = ['sekm.', 'pirm.', 'antr.', 'treč.', 'ketv.', 'penkt.', 'šeš
 const WD_ACC = ['sekmadienį', 'pirmadienį', 'antradienį', 'trečiadienį', 'ketvirtadienį', 'penktadienį', 'šeštadienį'];
 const dayLabel = n => n === 0 ? 'Šiandien' : n === 1 ? 'Rytoj' : WD_SHORT[new Date(addDays(today(), n) + 'T12:00').getDay()];
 // vidurkis klaidina (viena brangi prekė „+50 %" ir kelios pigiausios = „+13 %"), todėl rodoma, kiek pigiausių
-const cheapTxt = ch => !ch.cheap ? 'nė viena nėra pigiausia' : ch.cheap === ch.n ? (ch.n > 1 ? 'visos pigiausios' : 'pigiausia')
+const cheapTxt = ch => !ch.cheap ? 'nė viena nėra pigiausia' : ch.cheap === ch.n ? (ch.n === 1 ? 'pigiausia' : ch.n === 2 ? 'abi pigiausios' : `visos ${ch.n} pigiausios`)
   : `${ch.cheap} ${plural(ch.cheap, 'pigiausia', 'pigiausios', 'pigiausių')}`;
 const pctTxt = o => o == null ? '' : o < 0.005 ? 'pigiausios kainos' : `~${Math.round(o * 100)} % brangiau už pigiausias`;
 function recSeg(label, opts, cur, set) {   // mažas pasirinkimas kortelėje: „Kada pirksite: Šiandien · Rytoj · …“
@@ -1896,6 +1996,14 @@ function recCard() {
 
   box.append(recSeg('Kada pirksite', [0, 1, 2, 3].map(n => [n, dayLabel(n)]), REC_DAY,
     v => { REC_DAY = v; kv.put('recDay', recDate()); renderWatch(); }));
+  // tinklas be nė vienos tą dieną galiojančios akcijos į palyginimą nepatenka – pasakoma kodėl
+  const noCat = Object.keys(CHAINS).filter(c => DATA.items.some(it => it.c === c) && !DATA.items.some(it => it.c === c && validOn(it, D)));
+  if (noCat.length) {
+    const next = c => DATA.items.filter(it => it.c === c && it.f && it.f > D).map(it => it.f).sort()[0];
+    box.append(el('div', 'rec-nocat', noCat.map(c => next(c)
+      ? `${CHAINS[c]}: naujas leidinys galios nuo ${fmtDate(next(c))}`
+      : `${CHAINS[c]}: naujo leidinio dar nėra`).join(' · ') + ' – į palyginimą neįtraukta.'));
+  }
 
   if (best) {
     // kiekviena stebima prekė: ką imti šiame tinkle ir kiek tai brangiau už pigiausią
@@ -1908,7 +2016,8 @@ function recCard() {
         row.append(el('span', 'rv muted', cheap ? `nėra akcijos · pigiausia ${CHAINS[cheap[0]]}` : 'nėra akcijos'));
       } else {
         const it = x.it, price = it.p != null ? priceTxt(it) : '−' + it.d + '%';
-        const unit = t.byUnit && x.v != null ? ` · ${it.uv.calc && it.uv.base !== 1 ? '≈ ' : ''}${eur(x.v)} €/${it.uv.unit}` : '';   // ≈ – apskaičiuota iš kiekio
+        const same = it.p != null && !isFrom(it) && eur(it.p) === eur(x.v);   // 1 kg / 1 l pakuotė – kaina kartotųsi
+        const unit = t.byUnit && x.v != null && !same ? ` · ${it.uv.calc && it.uv.base !== 1 ? '≈ ' : ''}${eur(x.v)} €/${it.uv.unit}` : '';   // ≈ – apskaičiuota iš kiekio
         const diff = x.v != null && t.best ? x.v / t.best - 1 : null;
         const tag = diff == null ? el('span', 'rt muted', 'nepalyginama')
           : diff < 0.005 ? el('span', 'rt good', 'pigiausia') : el('span', 'rt', `+${Math.round(diff * 100)} %`);
@@ -2015,15 +2124,16 @@ if (matchMedia('(pointer: coarse)').matches) {
 }
 
 const TITLES = { list: 'Akcijos', watch: 'Mano prekės', basket: 'Pirkiniai' };
-async function setView(v) {
+async function setView(v, push = true) {
+  if (push && v !== state.view) { try { history.pushState({ view: v }, ''); } catch {} }   // „Atgal“ grąžina į ankstesnę skiltį
   state.view = v;
   if (v !== 'watch') HIDE_SUGG = null;   // „Slėpti ir kitas…“ pasiūlymas – tik iš karto po paslėpimo
   kv.put('view', v);   // kitą kartą atsidarys ta pati skiltis
   document.body.classList.toggle('v-basket', v === 'basket');
   document.body.classList.toggle('v-watch', v === 'watch');
   document.querySelector('.brand h1').textContent = TITLES[v];
-  for (const t of document.querySelectorAll('.tab')) t.setAttribute('aria-selected', String(t.dataset.view === v));
-  statusEl.hidden = resultsEl.hidden = pagerEl.hidden = v !== 'list';
+  for (const t of document.querySelectorAll('.tab')) { t.setAttribute('aria-selected', String(t.dataset.view === v)); t.tabIndex = t.dataset.view === v ? 0 : -1; }
+  $('listView').hidden = v !== 'list';
   $('basketView').hidden = v !== 'basket';
   $('watchView').hidden = v !== 'watch';
   if (v === 'list' || !DATA) await load();   // pirmą kartą užkrauna duomenis, krepšelį ir stebimas
@@ -2053,7 +2163,7 @@ function syncUrl() {
   if (state.page > 1) p.set('page', state.page);
   if (state.view !== 'list') p.set('view', state.view === 'basket' ? 'pirkiniai' : 'mano');
   const qs = p.toString();
-  try { history.replaceState(null, '', qs ? '?' + qs : location.pathname); } catch {}
+  try { history.replaceState({ ...(history.state || {}), view: state.view }, '', qs ? '?' + qs : location.pathname); } catch {}
 }
 
 async function load(more = false) {
@@ -2146,7 +2256,7 @@ new IntersectionObserver(([e]) => document.querySelector('header').classList.tog
 q.value = state.q;
 allBox.checked = state.all;
 $('searchBox').classList.toggle('has-text', !!q.value);
-if (matchMedia('(min-width: 700px)').matches && state.view === 'list') q.focus();
+if (matchMedia('(min-width: 700px) and (hover: hover)').matches && state.view === 'list') q.focus();   // ne telefone (klaviatūra uždengtų ekraną)
 for (const t of document.querySelectorAll('.tab')) t.onclick = () => { if (t.dataset.view !== state.view) setView(t.dataset.view); };
 // be nuorodos parametrų atsidaro paskutinė naudota skiltis
 (async () => {
@@ -2154,8 +2264,26 @@ for (const t of document.querySelectorAll('.tab')) t.onclick = () => { if (t.dat
     const last = await kv.get('view');
     if (last && last in TITLES) state.view = last;
   }
-  setView(state.view);
+  try { history.replaceState({ view: state.view }, ''); } catch {}
+  setView(state.view, false);
 })();
+
+/* ---------- Android „Atgal“: pirmiausia uždaro atvirą langą, paskui grąžina į ankstesnę skiltį ----------
+   Atidarant langą į istoriją įrašomas žingsnis; uždarius mygtuku – jis atšaukiamas (history.back). */
+let POP_SKIP = false;
+const _showModal = HTMLDialogElement.prototype.showModal;
+HTMLDialogElement.prototype.showModal = function () {
+  _showModal.call(this);
+  try { history.pushState({ ...(history.state || {}), dlg: true }, ''); } catch { return; }
+  this.addEventListener('close', () => { if (history.state && history.state.dlg) { POP_SKIP = true; history.back(); } }, { once: true });
+};
+addEventListener('popstate', e => {
+  if (POP_SKIP) { POP_SKIP = false; syncUrl(); return; }   // lange pakeistas rikiavimas lieka adrese
+  const open = document.querySelector('dialog[open]');
+  if (open) { open.close(); return; }
+  const v = (e.state && e.state.view) || 'list';
+  if (v !== state.view && v in TITLES) setView(v, false);
+});
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
