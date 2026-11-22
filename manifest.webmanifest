@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Akcijų paieška",
+  "name": "Akcijos",
   "short_name": "Akcijos",
-  "description": "Prekybos tinklų savaitės akcijų paieška",
+  "description": "Prekybos tinklų akcijos, kur pirkti pigiausiai ir pirkinių sąrašas",
   "lang": "lt",
   "start_url": "./",
   "scope": "./",

@@ -184,6 +184,7 @@
   .price { text-align:right; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
   .now { font-size:24px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--text); font-variant-numeric:tabular-nums; }
   .now small { font-size:.6em; font-weight:700; margin-left:1px; }
+  .now small.from { font-size:.55em; font-weight:600; color:var(--muted); margin:0 3px 0 0; }
   .now.pct { color:var(--accent); }
   .was { display:flex; align-items:center; gap:6px; }
   .old { color:var(--muted); text-decoration:line-through; font-size:13px; font-variant-numeric:tabular-nums; }
@@ -744,7 +745,14 @@ function el(tag, cls, text) {
 }
 const chainColor = c => `var(--c-${c in CHAINS ? c : 'x'}, var(--muted))`;
 // leidinio užrašai, kurie naudotojui nieko nesako („TIK“ prie Rimi kainų) – nerodomi
-const condOf = it => (it.k && !/^tik!?$/i.test(it.k.trim()) ? it.k : null);
+// „kaina nuo" (Lidl: kaina priklauso nuo dydžio) rodoma prie kainos („nuo 0,59 €"), ne tarp sąlygų
+const FROM_RE = /^kaina nuo$/i;
+const isFrom = it => !!it.k && it.k.split(/[,;]\s*/).some(x => FROM_RE.test(x.trim()));
+const priceTxt = it => (isFrom(it) ? 'nuo ' : '') + eur(it.p) + ' €';
+const condOf = it => {
+  const k = (it.k || '').split(/[,;]\s*/).filter(x => x.trim() && !FROM_RE.test(x.trim())).join(', ');
+  return k && !/^tik!?$/i.test(k.trim()) ? k : null;
+};
 const chainText = c => `var(--t-${c in CHAINS ? c : 'x'}, var(--muted))`;
 // tinklo spalva elementui: --c – taškams ir juostelėms, --ct – tekstui (skaitomesnis atspalvis)
 const tint = (e, c) => { e.style.setProperty('--c', chainColor(c)); e.style.setProperty('--ct', chainText(c)); };
@@ -802,7 +810,7 @@ function card(r, slot = false) {
   const c = el(r.l ? 'a' : 'article', 'card' + (expired ? ' expired' : ''));
   if (r.l) { c.href = r.l; c.target = '_blank'; c.rel = 'noopener'; }
   tint(c, r.c);
-  c.setAttribute('aria-label', `${CHAINS[r.c] || r.c}: ${r.n}` + (r.p != null ? `, ${eur(r.p)} €` : '') +
+  c.setAttribute('aria-label', `${CHAINS[r.c] || r.c}: ${r.n}` + (r.p != null ? `, ${priceTxt(r)}` : '') +
     (r.l ? `. Atidaryti leidinį, ${r.pg} puslapis` : ''));
 
   const top = el('div', 'top');
@@ -825,7 +833,9 @@ function card(r, slot = false) {
 
   const price = el('div', 'price');
   if (r.p != null) {
-    const now = el('div', 'now', eur(r.p)); now.append(el('small', null, ' €'));
+    const now = el('div', 'now');
+    if (isFrom(r)) now.append(el('small', 'from', 'nuo '));   // mažiausio dydžio kaina
+    now.append(eur(r.p), el('small', null, ' €'));
     price.append(now);
     if (r.o || r.d) {
       const was = el('div', 'was');
@@ -1079,7 +1089,7 @@ function basketRow(b, showStore = false) {
   const wt = whenTag(it, b.done); if (wt) sub.append(wt);
   info.append(el('div', 'wn', dispName(it.n)), sub);
   const pr = el('div', 'wpr');
-  pr.append(el('span', 'wp', it.p != null ? eur(it.p) + ' €' : (it.d ? '' : '—')));
+  pr.append(el('span', 'wp', it.p != null ? priceTxt(it) : (it.d ? '' : '—')));
   if (it.d) pr.append(el('span', 'badge', '−' + it.d + '%'));
   a.append(info, pr);
   const x = el('button', 'wx'); x.type = 'button'; x.innerHTML = ICON.rm;
@@ -1163,7 +1173,7 @@ function watchRow(it, isNew) {
   const wt = whenTag(it); if (wt) sub.append(wt);
   info.append(el('div', 'wn', dispName(it.n)), sub);
   const pr = el('div', 'wpr');
-  pr.append(el('span', 'wp', it.p != null ? eur(it.p) + ' €' : (it.d ? '' : '—')));
+  pr.append(el('span', 'wp', it.p != null ? priceTxt(it) : (it.d ? '' : '—')));
   if (it.d) pr.append(el('span', 'badge', '−' + it.d + '%'));
   a.append(el('span', 'dot'), info, pr);
   const b = el('button', 'slot wcart'); b.type = 'button';
@@ -1534,7 +1544,7 @@ function recCard() {
         const cheap = Object.entries(t.per).filter(([, y]) => y.v != null).sort((a, b) => a[1].v - b[1].v)[0];
         row.append(el('span', 'rv muted', cheap ? `nėra akcijos · pigiausia ${CHAINS[cheap[0]]}` : 'nėra akcijos'));
       } else {
-        const it = x.it, price = it.p != null ? eur(it.p) + ' €' : '−' + it.d + '%';
+        const it = x.it, price = it.p != null ? priceTxt(it) : '−' + it.d + '%';
         const unit = t.byUnit && x.v != null ? ` · ${eur(x.v)} €/${t.unit}` : '';
         const diff = x.v != null && t.best ? x.v / t.best - 1 : null;
         const tag = diff == null ? el('span', 'rt muted', 'nepalyginama')
@@ -1594,7 +1604,7 @@ function recCard() {
         const top = el('div', 'top');
         const s2 = el('span', 'store'); s2.append(el('span', 'dot'), CHAINS[ch.c]);
         top.append(s2, el('span', 'cn', `${ch.n} iš ${N}` + (ch.over != null ? ` · ${pctTxt(ch.over)}` : '')));
-        row.append(top, el('div', 'rec-sub', [...ch.pick].map(([q, it]) => `${q} ${it.p != null ? eur(it.p) + ' €' : '−' + it.d + '%'}`).join(' · ')));
+        row.append(top, el('div', 'rec-sub', [...ch.pick].map(([q, it]) => `${q} ${it.p != null ? priceTxt(it) : '−' + it.d + '%'}`).join(' · ')));
         if (LOC && STORES) { const n = nearest(ch.c); if (n && n.big) row.append(nearLink(n.big)); }
         cmp.append(row);
       }
