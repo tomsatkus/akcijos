@@ -809,7 +809,8 @@ function effDisc(it) {
 const num = s => +String(s).replace(',', '.');
 // klasė: svoris ir tūris lyginami kartu (kg ~ l), vienetai – atskirai
 const uClass = unit => unit === 'vnt' ? 'vnt' : 'm';
-const QTY_RE = /(?:(\d+)\s*x\s*)?(\d+(?:,\d+)?)\s*(kg|g|ml|l|vnt)\.?(?![\p{L}\d])/giu;
+// „2 x 500 g“, „2 × 400 g“, „2 dėž. × 100 g“ (kaina už kelias pakuotes)
+const QTY_RE = /(?:(\d+)\s*(?:\p{L}{2,4}\.\s*)?[x×]\s*)?(\d+(?:,\d+)?)\s*(kg|g|ml|l|vnt)\.?(?![\p{L}\d])/giu;
 function unitValue(it) {
   // 1) leidinio kaina už vienetą; kai kelios („34,22 / 30,88 Eur/kg") – pirmoji, t. y. mažiausios pakuotės
   const u = (it.u || '').match(/(\d+,\d{2})(?:\s*\/\s*\d+,\d{2})*\s*Eur\/(kg|l|vnt)/i);
