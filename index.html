@@ -662,16 +662,29 @@ function effDisc(it) {
 }
 // kaina už kg arba l (skystis ir svoris lyginami kartu): iš leidinio „5,98 Eur/kg", o jei jos nėra – iš kiekio
 const num = s => +String(s).replace(',', '.');
+// klasė: svoris ir tūris lyginami kartu (kg ~ l), vienetai – atskirai
+const uClass = unit => unit === 'vnt' ? 'vnt' : 'm';
+const QTY_RE = /(?:(\d+)\s*x\s*)?(\d+(?:,\d+)?)\s*(kg|g|ml|l|vnt)\.?(?![\p{L}\d])/giu;
 function unitValue(it) {
-  const u = (it.u || '').match(/(\d+,\d{2})\s*Eur\/(kg|l)\b/i);
-  if (u) return { v: num(u[1]), unit: u[2].toLowerCase(), calc: false };
-  if (it.p == null || !it.q || /[–\/]|,\s*\d|arba/.test(it.q)) return null;   // keli dydžiai ar intervalas – neskaičiuojama
-  const m = it.q.match(/^(?:(\d+)\s*x\s*)?(\d+(?:,\d+)?)\s*(kg|g|ml|l)$/i);
-  if (!m) return null;
-  const n = m[1] ? +m[1] : 1, amt = num(m[2]) * n, unit = m[3].toLowerCase();
-  const base = unit === 'g' || unit === 'ml' ? amt / 1000 : amt;
-  if (!(base > 0)) return null;
-  return { v: it.p / base, unit: unit === 'g' || unit === 'kg' ? 'kg' : 'l', calc: true };
+  // 1) leidinio kaina už vienetą; kai kelios („34,22 / 30,88 Eur/kg") – pirmoji, t. y. mažiausios pakuotės
+  const u = (it.u || '').match(/(\d+,\d{2})(?:\s*\/\s*\d+,\d{2})*\s*Eur\/(kg|l|vnt)/i);
+  const q = qtyBase(it);
+  if (u) { const unit = u[2].toLowerCase(); return { v: num(u[1]), unit, calc: false, base: q && q.unit === unit ? q.base : null }; }
+  if (it.p == null || !q) return null;
+  return { v: it.p / q.base, unit: q.unit, calc: true, base: q.base };
+}
+// pakuotės kiekis kg / l / vnt. iš „500 g", „2 x 500 g", „2,5 % rieb., 1 l", „170 g / 180 g", „10 vnt."
+function qtyBase(it) {
+  if (!it.q || /\d\s*[–-]\s*\d/.test(it.q)) return null;   // intervalas („90–800 g") – neskaičiuojama
+  const sizes = [...it.q.matchAll(QTY_RE)].map(m => {
+    const unit = m[3].toLowerCase(), amt = num(m[2]) * (m[1] ? +m[1] : 1);
+    return { base: unit === 'g' || unit === 'ml' ? amt / 1000 : amt, unit: unit === 'g' || unit === 'kg' ? 'kg' : unit === 'vnt' ? 'vnt' : 'l' };
+  }).filter(x => x.base > 0);
+  if (!sizes.length) return null;
+  // svoris / tūris pirmiau nei vienetai; keli dydžiai už tą pačią kainą („170 g / 180 g", „kaina nuo") –
+  // skaičiuojama mažiausiam, nes ta kaina tikrai galioja jam
+  const pref = sizes.filter(x => x.unit !== 'vnt'), pool = pref.length ? pref : sizes;
+  return pool.reduce((a, b) => (b.base < a.base ? b : a));
 }
 // paieškos žodis kaip šalutinis: po „su“ / „be“ (iki 3 žodžių: „bandelės su Teriyaki vištiena“)
 // arba prieš „skonio“, „įdaru“ („sūrio skonio“, „vištienos ir sūrio įdaru“)
@@ -727,7 +740,8 @@ function browse() {
     items = items.slice().sort((a, b) => rel(a, b) || (a.p == null) - (b.p == null) || (b.e ?? -1) - (a.e ?? -1));   // be kainos – po kitų
     if (mixChains()) items = roundRobin(items);
   } else if (mode === 'unit') {   // kaina už kg / l; be jos – po kitų, pagal kainą
-    items = items.slice().sort((a, b) => rel(a, b) || (!a.uv) - (!b.uv) || (a.uv && b.uv ? a.uv.v - b.uv.v : 0));
+    const grp = it => !it.uv ? 2 : uClass(it.uv.unit) === 'm' ? 0 : 1;   // kg / l, po jų už vnt., tada be kainos už vienetą
+    items = items.slice().sort((a, b) => rel(a, b) || grp(a) - grp(b) || (a.uv && b.uv ? a.uv.v - b.uv.v : 0));
   } else items = items.slice().sort(rel);   // data.json jau surikiuotas pagal kainą; sort() stabilus
   const total = items.length, pages = Math.max(1, Math.ceil(total / PER_PAGE));
   const page = Math.min(Math.max(1, state.page), pages);
@@ -1302,16 +1316,24 @@ function recommend() {
   for (const w of WATCH) {
     const all = watchHits(w), hits = all.filter(h => validOn(h, D));
     if (!hits.length) {
-      const later = all.filter(h => h.f && h.f > D).map(h => h.f).sort()[0];
+      const later = all.filter(h => !h.r && h.f && h.f > D).map(h => h.f).sort()[0];
       if (later) soon.set(w.q, later);
       continue;
     }
     // tik tikrai atitinkančios: pati prekė, ne „… su sūriu“; tiksliai tas žodis, ne kita forma
     let rel = hits.filter(h => !h.r && !h.y);
     if (!rel.length) rel = hits.filter(h => !h.r);
-    if (!rel.length) rel = hits;
-    const byUnit = rel.some(h => h.uv);
-    const val = h => byUnit ? (h.uv ? h.uv.v : null) : h.p;
+    // tik „jogurtas su … bananais" – tai ne bananų akcija: prekė laikoma be akcijos
+    if (!rel.length) {
+      const later = all.filter(h => !h.r && h.f && h.f > D).map(h => h.f).sort()[0];
+      if (later) soon.set(w.q, later);
+      continue;
+    }
+    // lyginimo vienetas: dažniausias tarp prekių (kg / l arba vnt.); kitokio vieneto prekės – „nepalyginama"
+    const cnt = { m: 0, vnt: 0 };
+    for (const h of rel) if (h.uv) cnt[uClass(h.uv.unit)]++;
+    const cls = cnt.m >= cnt.vnt ? 'm' : 'vnt', byUnit = cnt[cls] > 0;
+    const val = h => byUnit ? (h.uv && uClass(h.uv.unit) === cls ? h.uv.v : null) : h.p;
     const per = {};   // tinklas -> { it, v }: pigiausia to tinklo prekė
     for (const h of rel) {
       const v = val(h), cur = per[h.c];
@@ -1320,24 +1342,24 @@ function recommend() {
     const vals = Object.values(per).map(x => x.v).filter(v => v != null);
     const best = vals.length ? Math.min(...vals) : null;
     const bestIt = best != null ? Object.values(per).find(x => x.v === best).it : null;
-    const ref = byUnit && bestIt && bestIt.p ? bestIt.p / bestIt.uv.v : 1;   // pigiausios pakuotės kiekis (kg / l)
+    const ref = byUnit && bestIt && bestIt.p ? (bestIt.uv.base || bestIt.p / bestIt.uv.v) : 1;   // pigiausios pakuotės kiekis (kg / l)
     terms.push({ q: w.q, per, best, byUnit, ref, unit: byUnit && bestIt ? bestIt.uv.unit : null });
   }
   if (!terms.length) return { chains: [], best: null, combo: null, soon, terms, D };
   const over = (t, c) => { const x = t.per[c]; return x && x.v != null && t.best ? (x.v - t.best) * t.ref : null; };   // permoka, €
   const chains = Object.keys(CHAINS).map(c => {
     const pick = new Map();
-    let score = 0, pct = 0, k = 0, extra = 0, save = 0;
+    let score = 0, pct = 0, k = 0, extra = 0, save = 0, cheap = 0;
     for (const t of terms) {
       const x = t.per[c];
       if (!x) continue;
       pick.set(t.q, x.it);
       save += savingOf(x.it);
-      if (x.v != null && t.best) { score += t.best / x.v; pct += x.v / t.best - 1; k++; extra += over(t, c); }
+      if (x.v != null && t.best) { score += t.best / x.v; pct += x.v / t.best - 1; k++; extra += over(t, c); if (x.v / t.best < 1.005) cheap++; }
       else score += 0.5;
     }
     const end = [...pick.values()].map(it => it.t).filter(Boolean).sort()[0] || null;
-    return { c, pick, n: pick.size, score, over: k ? pct / k : null, extra, end, save };
+    return { c, pick, n: pick.size, score, over: k ? pct / k : null, extra, end, save, cheap };
   }).filter(x => x.n).sort((a, b) => b.score - a.score || b.n - a.n
     || (b.end || '9999').localeCompare(a.end || '9999') || b.save - a.save);
   const best = chains[0];
@@ -1493,6 +1515,9 @@ let cmpOpen = false, recOpen = false;
 const WD_SHORT = ['sekm.', 'pirm.', 'antr.', 'treč.', 'ketv.', 'penkt.', 'šešt.'];
 const WD_ACC = ['sekmadienį', 'pirmadienį', 'antradienį', 'trečiadienį', 'ketvirtadienį', 'penktadienį', 'šeštadienį'];
 const dayLabel = n => n === 0 ? 'Šiandien' : n === 1 ? 'Rytoj' : WD_SHORT[new Date(addDays(today(), n) + 'T12:00').getDay()];
+// vidurkis klaidina (viena brangi prekė „+50 %" ir kelios pigiausios = „+13 %"), todėl rodoma, kiek pigiausių
+const cheapTxt = ch => !ch.cheap ? 'nė viena nėra pigiausia' : ch.cheap === ch.n ? (ch.n > 1 ? 'visos pigiausios' : 'pigiausia')
+  : `${ch.cheap} ${plural(ch.cheap, 'pigiausia', 'pigiausios', 'pigiausių')}`;
 const pctTxt = o => o == null ? '' : o < 0.005 ? 'pigiausios kainos' : `~${Math.round(o * 100)} % brangiau už pigiausias`;
 function recSeg(label, opts, cur, set) {   // mažas pasirinkimas kortelėje: „Kada pirksite: Šiandien · Rytoj · …“
   const row = el('div', 'rec-opt'); row.append(el('span', 'rec-ol', label));
@@ -1516,7 +1541,7 @@ function recCard() {
   if (best) {
     const st = el('span', 'store'); st.append(el('span', 'dot'), CHAINS[best.c]);
     main.append(st, el('span', 'cov', `${best.n} iš ${N}`));
-    if (best.over != null) main.append(el('span', best.over < 0.005 ? 'save' : 'lvl', pctTxt(best.over)));
+    main.append(el('span', best.cheap === best.n ? 'save' : 'lvl', cheapTxt(best)));
     const endingSoon = [...best.pick.values()].filter(it => it.t && daysLeft(it.t) <= 1);
     if (endingSoon.length && REC_DAY <= 1) {
       const w = endWord(endingSoon.map(it => it.t).sort()[0]);
@@ -1545,7 +1570,7 @@ function recCard() {
         row.append(el('span', 'rv muted', cheap ? `nėra akcijos · pigiausia ${CHAINS[cheap[0]]}` : 'nėra akcijos'));
       } else {
         const it = x.it, price = it.p != null ? priceTxt(it) : '−' + it.d + '%';
-        const unit = t.byUnit && x.v != null ? ` · ${eur(x.v)} €/${t.unit}` : '';
+        const unit = t.byUnit && x.v != null ? ` · ${it.uv.calc && it.uv.base !== 1 ? '≈ ' : ''}${eur(x.v)} €/${it.uv.unit}` : '';   // ≈ – apskaičiuota iš kiekio
         const diff = x.v != null && t.best ? x.v / t.best - 1 : null;
         const tag = diff == null ? el('span', 'rt muted', 'nepalyginama')
           : diff < 0.005 ? el('span', 'rt good', 'pigiausia') : el('span', 'rt', `+${Math.round(diff * 100)} %`);
@@ -1603,7 +1628,7 @@ function recCard() {
         const row = el('div', 'cmp-row'); tint(row, ch.c);
         const top = el('div', 'top');
         const s2 = el('span', 'store'); s2.append(el('span', 'dot'), CHAINS[ch.c]);
-        top.append(s2, el('span', 'cn', `${ch.n} iš ${N}` + (ch.over != null ? ` · ${pctTxt(ch.over)}` : '')));
+        top.append(s2, el('span', 'cn', `${ch.n} iš ${N} · ${cheapTxt(ch)}` + (ch.over >= 0.005 ? ` · ${pctTxt(ch.over)}` : '')));
         row.append(top, el('div', 'rec-sub', [...ch.pick].map(([q, it]) => `${q} ${it.p != null ? priceTxt(it) : '−' + it.d + '%'}`).join(' · ')));
         if (LOC && STORES) { const n = nearest(ch.c); if (n && n.big) row.append(nearLink(n.big)); }
         cmp.append(row);
