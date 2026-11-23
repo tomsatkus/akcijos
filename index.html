@@ -462,6 +462,9 @@
   .tb-l { color:var(--muted); font-size:0.8125rem; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
   .tb-l.plain { font-style:italic; }
   .tb-n { font-size:0.75rem; font-weight:650; color:var(--warn); }
+  .ps-in { width:100%; box-sizing:border-box; font:inherit; font-size:1rem; padding:12px 14px; margin:0 0 14px; border:1.5px solid var(--line);
+           border-radius:12px; background:transparent; color:var(--text); }
+  .tb-sub.err { color:var(--warn); }
   .rec-note { margin-top:4px; font-size:0.7188rem; color:var(--muted); }
   .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:0.875rem; }
   .rec-combo b { font-weight:700; }
@@ -587,6 +590,7 @@ const CHAINS = { maxima:'Maxima', iki:'IKI', lidl:'Lidl', rimi:'Rimi', norfa:'No
 // Būsena laikoma ir adreso juostoje (?q=...&chain=...&sort=...&page=...), kad atnaujinus puslapį ar
 // grįžus atgal matytumėte tą patį sąrašą
 const params = new URLSearchParams(location.search);
+const SHARE_IN = location.hash;   // pasidalinto pirkinių sąrašo nuoroda (#s=…), žr. „Dalijimasis sąrašu“
 const state = {
   q: params.get('q') || '',
   chain: CHAINS[params.get('chain')] ? params.get('chain') : null,
@@ -1209,13 +1213,16 @@ function toast(msg, undo, action) {   // action: [tekstas, funkcija] – pvz. �
   toastTimer = setTimeout(() => { t.hidden = true; }, 5000);
 }
 /* ranka įrašoma prekė („duona"): be parduotuvės ir kainos; jei jai yra akcijų – parodoma, kur pigiausia */
+function plainHint(q) {
+  const hits = coreHits(watchHits({ q, seen: [] })), best = cheapest(hits, today());   // kaip „Mano prekėse“
+  return { hits, best, h: best ? `${akcijos(hits.length)} · nuo ${fromTxt(best)} (${CHAINS[best.c]})` : null };
+}
 function addPlainUI(q) {
   q = q.trim().replace(/\s+/g, ' ');
   if (!watchKey(q)) return false;
   const id = plainId('any', q);
   if (BASKET.some(b => b.id === id && !b.done)) { toast(`„${q}“ jau yra pirkinių sąraše`); return true; }
-  const hits = coreHits(watchHits({ q, seen: [] })), best = cheapest(hits, today());   // kaip „Mano prekėse“
-  const h = best ? `${akcijos(hits.length)} · nuo ${fromTxt(best)} (${CHAINS[best.c]})` : null;
+  const { hits, best, h } = plainHint(q);
   BASKET = BASKET.filter(b => b.id !== id);   // nupirkta tokia pati – keičiama nauja
   BASKET.push({ id, it: { c: 'any', n: cap(q), plain: true, h }, done: false, at: Date.now(), q });
   saveBasket(true);
@@ -1241,7 +1248,9 @@ function renderBasket() {
     box.append(el('div', 'big', '📝'), el('h2', null, 'Pirkinių sąrašas tuščias'),
       el('p', null, 'Įrašykite, ką reikia nupirkti, arba akcijų sąraše spauskite sąrašo mygtuką su „+“ prie prekių.'));
     const b = el('button', 'chip', 'Žiūrėti akcijas'); b.type = 'button'; b.onclick = () => setView('list');
-    box.append(b);
+    const imp = el('button', 'chip', 'Įkelti iš nuorodos'); imp.type = 'button'; imp.onclick = openPasteShare;
+    const bb = el('div', 'bactions'); bb.append(b, imp);
+    box.append(bb);
     v.append(box);
     return;
   }
@@ -1327,6 +1336,13 @@ function renderBasket() {
   }
 
   const act = el('div', 'bactions');
+  const shareable = left.filter(b => !gone(b));
+  if (shareable.length) {
+    const b = el('button', 'chip', 'Dalintis sąrašu'); b.type = 'button'; b.onclick = () => shareBasket(shareable);
+    act.append(b);
+  }
+  const imp = el('button', 'chip', 'Įkelti iš nuorodos'); imp.type = 'button'; imp.onclick = openPasteShare;
+  act.append(imp);
   const old = left.filter(gone);
   if (old.length) {
     const b = el('button', 'chip', `Pašalinti pasibaigusias (${old.length})`); b.type = 'button';
@@ -2049,6 +2065,129 @@ function openToBasket(r, stores) {
   dlg.replaceChildren(f);
   dlg.showModal();
 }
+/* ---------- Dalijimasis pirkinių sąrašu: nuoroda su trumpais prekių kodais ----------
+   Akcijos nuorodoje nesiunčiamos – gavėjas jas turi savo data.json. Kiekvienai prekei siunčiamas 6 simbolių kodas
+   (SHA-256 iš itemId), ranka įrašytoms – tekstas: #s=<kodai be skirtukų>&t=duona~pienas.
+   Gavėjas kodus atpažįsta, kol prekė yra jo data.json (t. y. tą savaitę); pasibaigusios praleidžiamos. */
+const SHARE_LEN = 6;
+async function shareCode(it) {
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(itemId(it))));
+  return btoa(String.fromCharCode(...d.slice(0, 6))).replace(/\+/g, '-').replace(/\//g, '_').slice(0, SHARE_LEN);
+}
+async function shareUrl(items) {
+  const codes = await Promise.all(items.filter(b => !b.it.plain).map(b => shareCode(b.it)));
+  const texts = items.filter(b => b.it.plain).map(b => encodeURIComponent((b.q || b.it.n).replace(/~/g, ' ').trim())).filter(Boolean);
+  const parts = [codes.length && 's=' + codes.join(''), texts.length && 't=' + texts.join('~')].filter(Boolean);
+  return location.origin + location.pathname + '#' + parts.join('&');
+}
+async function shareBasket(items) {
+  let url;
+  try { url = await shareUrl(items); } catch { toast('Nepavyko sudaryti nuorodos'); return; }
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Pirkinių sąrašas', url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }   // užvėrė bendrinimo langą
+  }
+  try { await navigator.clipboard.writeText(url); toast(`Nuoroda nukopijuota (${items.length} ${prekes(items.length)})`); }
+  catch { openPasteShare(url); }   // nepavyko nukopijuoti – parodoma, kad nukopijuotumėte patys
+}
+function parseShare(s) {
+  const i = (s || '').indexOf('#');
+  if (i < 0) return null;
+  const p = new URLSearchParams(s.slice(i + 1));
+  const codes = (p.get('s') || '').match(new RegExp(`[\\w-]{${SHARE_LEN}}`, 'g')) || [];
+  const texts = (p.get('t') || '').split('~').map(x => x.trim().replace(/\s+/g, ' ')).filter(x => watchKey(x));
+  return codes.length || texts.length ? { codes, texts } : null;
+}
+// paleidžiama įkėlus duomenis: atidaryta pasidalinto sąrašo nuoroda
+function checkShareIn() {
+  const sh = parseShare(SHARE_IN);
+  if (sh) openImport(sh);
+}
+/* „Įkelti iš nuorodos“: iPhone pradžios ekrano programėlė nuorodų neperima (jos atsidaro Safari),
+   todėl nuorodą galima įklijuoti. Su url – parodoma nuoroda nukopijuoti (kai iškarpinė nepasiekiama). */
+function openPasteShare(url) {
+  const out = typeof url === 'string';
+  let dlg = $('pasteShare');
+  if (!dlg) { dlg = el('dialog', 'sheet'); dlg.id = 'pasteShare'; dlg.setAttribute('aria-labelledby', 'psTitle'); document.body.append(dlg);
+              dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); }); }
+  const f = el('form'); f.method = 'dialog';
+  const h = el('h2', null, out ? 'Pirkinių sąrašo nuoroda' : 'Įkelti iš nuorodos'); h.id = 'psTitle';
+  const inp = el('input', 'ps-in'); inp.type = 'text'; inp.autocomplete = 'off'; inp.setAttribute('aria-label', 'Nuoroda');
+  const msg = el('p', 'tb-sub', out ? 'Nukopijuokite nuorodą ir nusiųskite ją.' : 'Įklijuokite gautą pirkinių sąrašo nuorodą.');
+  const go = el('button', 'primary', out ? 'Uždaryti' : 'Įkelti'); go.type = 'submit';
+  f.append(el('div', 'grab'), h, msg, inp, go);
+  if (out) { inp.value = url; inp.readOnly = true; inp.onfocus = () => inp.select(); }
+  else {
+    const no = el('button', 'secondary', 'Atšaukti'); no.type = 'button'; no.onclick = () => dlg.close();
+    f.append(no);
+    f.onsubmit = e => {
+      e.preventDefault();
+      const sh = parseShare(inp.value.trim());
+      if (!sh) { msg.textContent = 'Tai ne pirkinių sąrašo nuoroda. Nukopijuokite visą gautą nuorodą.'; msg.classList.add('err'); return; }
+      dlg.close(); openImport(sh);
+    };
+  }
+  dlg.replaceChildren(f);
+  dlg.showModal();
+  setTimeout(() => { inp.focus(); if (out) inp.select(); }, 50);
+}
+async function openImport(sh) {
+  let byCode = new Map();
+  if (sh.codes.length) {
+    const want = new Set(sh.codes);
+    const codes = await Promise.all(DATA.items.map(shareCode));
+    DATA.items.forEach((it, i) => { if (want.has(codes[i]) && !byCode.has(codes[i])) byCode.set(codes[i], it); });
+  }
+  const rows = [];
+  for (const c of new Set(sh.codes)) { const it = byCode.get(c); if (it) rows.push({ it }); }
+  const missing = new Set(sh.codes).size - rows.length;
+  for (const q of new Set(sh.texts.map(cap))) rows.push({ q });
+  let dlg = $('importDlg');
+  if (!dlg) { dlg = el('dialog', 'sheet'); dlg.id = 'importDlg'; dlg.setAttribute('aria-labelledby', 'imTitle'); document.body.append(dlg);
+              dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); }); }
+  const f = el('form'); f.method = 'dialog';
+  const h = el('h2', null, 'Gautas pirkinių sąrašas'); h.id = 'imTitle';
+  const n = rows.length + missing;
+  f.append(el('div', 'grab'), h, el('div', 'tb-sub', `${n} ${prekes(n)}` + (missing ? ` · ${missing} ${plural(missing, 'akcija jau pasibaigė', 'akcijos jau pasibaigė', 'akcijų jau pasibaigė')}` : '')));
+  const list = el('div', 'tb-list'), boxes = [];
+  for (const r of rows) {
+    const id = r.it ? itemId(r.it) : plainId('any', r.q);
+    const same = BASKET.some(b => b.id === id && !b.done), old = r.it && gone({ it: r.it });
+    const row = el('label', 'tb-row' + (same ? ' off' : ''));
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = !same && !old; cb.disabled = same;
+    const txt = el('span', 'tb-t');
+    if (r.it) {
+      txt.append(el('b', null, dispName(r.it.n)), el('span', 'tb-l', `${CHAINS[r.it.c] || r.it.c} · ${r.it.p != null ? priceTxt(r.it) : discTxt(r.it)}`));
+      if (old && !same) txt.append(el('span', 'tb-n', 'akcija pasibaigė'));
+    } else txt.append(el('b', null, r.q), el('span', 'tb-l plain', 'bet kurioje parduotuvėje'));
+    if (same) txt.append(el('span', 'tb-n', 'jau sąraše'));
+    row.append(cb, txt);
+    list.append(row);
+    boxes.push([cb, r, id]);
+  }
+  const go = el('button', 'primary'); go.type = 'button';
+  const paint = () => { const k = boxes.filter(([cb]) => cb.checked).length; go.textContent = k ? `Įdėti ${k} ${prekes(k)}` : 'Nieko nepažymėta'; go.disabled = !k; };
+  for (const [cb] of boxes) cb.onchange = paint;
+  paint();
+  go.onclick = () => {
+    const prev = BASKET.slice(), now = Date.now();
+    const add = boxes.filter(([cb]) => cb.checked).map(([, r, id], i) => r.it
+      ? { id, it: snap(r.it), done: false, at: now + i }
+      : { id, it: { c: 'any', n: r.q, plain: true, h: plainHint(r.q).h }, done: false, at: now + i, q: r.q });
+    const ids = new Set(add.map(a => a.id));
+    BASKET = BASKET.filter(b => !ids.has(b.id)).concat(add);   // nupirkta tokia pati – keičiama nauja
+    saveBasket(true); dlg.close();
+    toast(`Į pirkinių sąrašą įdėta ${add.length} ${prekes(add.length)}`, () => { BASKET = prev; saveBasket(); state.view === 'basket' && renderBasket(); });
+    if (state.view === 'basket') renderBasket(); else setView('basket');
+  };
+  const no = el('button', 'secondary', 'Atšaukti'); no.type = 'button'; no.onclick = () => dlg.close();
+  if (!rows.length) {
+    list.append(el('p', 'tb-sub', 'Visų šio sąrašo prekių akcijos jau pasibaigė – nėra ką įkelti.'));
+    f.append(list, no);
+  } else f.append(list, go, no);
+  dlg.replaceChildren(f);
+  dlg.showModal();
+}
 function recCard() {
   const r = recommend();
   if (!WATCH.length) return null;
@@ -2258,6 +2397,7 @@ async function load(more = false) {
       await loadBasket();
       await loadWatch();
       await loadStores();
+      checkShareIn();
     } catch (e) {
       statusEl.textContent = '';
       const box = el('div', 'empty');
