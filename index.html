@@ -2413,6 +2413,26 @@ if (matchMedia('(pointer: coarse)').matches) {
   document.addEventListener('focusin', e => { if (isField(e)) document.body.classList.add('typing'); });
   document.addEventListener('focusout', e => { if (isField(e)) setTimeout(() => {
     if (!document.activeElement || !isField({ target: document.activeElement })) document.body.classList.remove('typing'); }, 50); });
+  // Juosta grįžta tik laukeliui praradus fokusą, bet telefone klaviatūrą dažnai uždaro ne tai: rezultatai paslenkami
+  // arba klaviatūra uždaroma sistemos mygtuku – laukelis lieka aktyvus, o juosta dingsta visam laikui. Todėl:
+  const release = () => { const a = document.activeElement; if (a && isField({ target: a })) a.blur(); };
+  // 1) pradėjus slinkti pirštu (ne pačiame laukelyje) – laukelis atleidžiamas, klaviatūra užsidaro
+  let touchY = null;
+  document.addEventListener('touchstart', e => { touchY = e.touches.length === 1 && !isField(e) ? e.touches[0].clientY : null; }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (touchY != null && document.body.classList.contains('typing') && Math.abs(e.touches[0].clientY - touchY) > 12) { touchY = null; release(); }
+  }, { passive: true });
+  // 2) klaviatūra uždaryta sistemos mygtuku: matomo ekrano aukštis vėl beveik pilnas
+  const vv = window.visualViewport;
+  if (vv) {
+    let full = vv.height, kbOpen = false;
+    vv.addEventListener('resize', () => {
+      full = Math.max(full, vv.height);
+      if (!document.body.classList.contains('typing')) { kbOpen = false; return; }
+      if (vv.height < full * 0.75) kbOpen = true;
+      else if (kbOpen && vv.height > full * 0.9) { kbOpen = false; release(); }
+    });
+  }
 }
 
 const TITLES = { list: 'Akcijos', watch: 'Mano prekės', basket: 'Pirkiniai' };
