@@ -1666,7 +1666,13 @@ function renderWatch() {
   groups.sort((a, b) => (!a.core.length) - (!b.core.length) || b.w.at - a.w.at);   // naujausios viršuje
   const withHits = groups.filter(g => g.core.length).length;
   v.append(el('div', 'wsum', `${withHits} iš ${WATCH.length} ${plural(WATCH.length, 'prekės', 'prekių', 'prekių')} turi akcijų`));
-  const rc = recCard(); if (rc) v.append(rc);
+  // rekomendacijos klaida neturi paslėpti viso „Mano prekių“ sąrašo
+  let rc = null;
+  try { rc = recCard(); } catch (e) {
+    console.error('recCard', e);
+    rc = el('section', 'rec'); rc.append(el('div', 'rec-sub', 'Rekomendacijos parodyti nepavyko – sąrašas žemiau veikia.'));
+  }
+  if (rc) v.append(rc);
 
   const list = el('div', 'wlist');
   for (const { w, hits, core } of groups) {
@@ -2298,7 +2304,9 @@ function recCard() {
         row.append(el('span', 'rv muted', cheap ? `nėra akcijos · pigiausia ${CHAINS[cheap[0]]}` : 'nėra akcijos'));
       } else {
         const it = x.it, price = it.p != null ? priceTxt(it) : discTxt(it);
-        const same = it.p != null && !isFrom(it) && eur(it.p) === eur(x.v);   // 1 kg / 1 l pakuotė – kaina kartotųsi
+        // 1 kg / 1 l pakuotė – kaina kartotųsi. x.v nėra, kai šio tinklo prekė nepalyginama tuo pačiu vienetu
+        // (arbata pakeliais „vnt.“, kai kitos – už kg): anksčiau čia eur(null) nulauždavo visą skiltį
+        const same = it.p != null && x.v != null && !isFrom(it) && eur(it.p) === eur(x.v);
         const unit = t.byUnit && x.v != null && !same ? ` · ${it.uv.calc && it.uv.base !== 1 ? '≈ ' : ''}${eur(x.v)} €/${it.uv.unit}` : '';   // ≈ – apskaičiuota iš kiekio
         const diff = x.v != null && t.best ? x.v / t.best - 1 : null;
         const tag = diff == null ? el('span', 'rt muted', 'nepalyginama')
