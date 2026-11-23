@@ -905,13 +905,13 @@ function modAfter(it, j) {
 // ta pati paieška naudojama sąraše ir stebimose prekėse
 function matchItems(items, text) {
   const raw = normalize(text).split(' ').filter(Boolean), toks = raw.map(stem);
-  if (!toks.length) { for (const it of items) it.x = it.r = 0; return items; }
+  if (!toks.length) { for (const it of items) it.x = it.rel = 0; return items; }
   // žodis tinka, jei jo kamienas sutampa („sūrio" ~ „sūris") arba jis prasideda įvestu tekstu („šokol")
   items = items.filter(it => raw.every((r, i) => it.w.some((w, j) => w.startsWith(r) || it.st[j] === toks[i])));
   // pirmiau prekės, kurių žodžiai atitinka tiksliai („mėsa" ~ „mėsos"), po jų tik pagal pradžią („mėsainis")
   for (const it of items) {
     it.x = toks.every(s => it.st.includes(s)) ? 0 : 1;
-    it.r = toks.every((s, i) => primaryHit(it, s, raw[i])) ? 0 : 1;   // pati prekė pirmiau nei „… su sūriu“
+    it.rel = toks.every((s, i) => primaryHit(it, s, raw[i])) ? 0 : 1;   // pati prekė pirmiau nei „… su sūriu“
   }
   return items;
 }
@@ -943,7 +943,7 @@ function browse() {
   const counts = {};
   for (const it of items) counts[it.c] = (counts[it.c] || 0) + 1;
   if (state.chain) items = items.filter(it => it.c === state.chain);
-  const mode = sortMode(), rel = (a, b) => a.x - b.x || a.r - b.r || a.y - b.y;
+  const mode = sortMode(), rel = (a, b) => a.x - b.x || a.rel - b.rel || a.y - b.y;
   if (mode === 'discount') {
     items = items.slice().sort((a, b) => rel(a, b) || (a.p == null) - (b.p == null) || (b.e ?? -1) - (a.e ?? -1));   // be kainos – po kitų
     if (mixChains()) items = roundRobin(items);
@@ -1075,6 +1075,7 @@ function card(r, slot = false) {
   const k = condOf(r);
   if (k) { const cr = el('div', 'cond-row'); cr.append(el('span', 'cond', k)); c.append(cr); }   // sąlyga – per visą plotį
 
+  // r – data.json žyma „reikia patikrinti“ (needs_review); paieškos ryšys laikomas atskirai – rel
   if (r.r) c.append(el('div', 'warn', '⚠ Kaina gali būti nuskaityta neteisingai – patikrinkite leidinyje'));
   return c;
 }
@@ -1084,7 +1085,7 @@ function card(r, slot = false) {
    data.json prekės neturi nuolatinio id, todėl jis sudaromas iš tinklo, pavadinimo, kiekio, galiojimo ir puslapio. */
 let BASKET = [];   // [{ id, it, done, at }]
 const itemId = r => [r.c, r.n, r.q || '', r.f || '', r.pg].join('|');
-const snap = ({ w, st, x, s, ...rest }) => rest;
+const snap = ({ w, st, x, s, rel, y, ...rest }) => rest;   // paieškos laikini laukai (rel, x, y) – ne prekės duomenys
 const inBasket = r => BASKET.some(b => b.id === itemId(r));
 async function loadBasket() {
   const saved = await kv.get('basket');
@@ -1403,7 +1404,7 @@ let HIDE_SUGG = null, HIDE_OPEN = new Set();   // pasiūlyti žodžiai po paslė
 function watchHits(w) { return watchHitsAll(w).filter(it => !isHidden(w, it)); }
 // tikrai atitinkančios: pati prekė, ne priedas („… su bananais", „bananų skonio", „pieno šokoladas"); bet kuri forma
 // („vištienos filė"). Tą patį naudoja ir rekomendacija, ir skaičiai sąraše.
-function coreHits(hits) { return hits.filter(h => !h.r); }
+function coreHits(hits) { return hits.filter(h => !h.rel); }
 const susijusios = n => `${n} ${plural(n, 'susijusi', 'susijusios', 'susijusių')}`;
 function hiddenHits(w) { return w.ex ? watchHitsAll(w).filter(it => isHidden(w, it)) : []; }
 const NO_WORD = new Set(['arba', 'rieb', 'rusiu', 'rusys', 'dydziu', 'ivairiu', 'kaina', 'nuolaida', 'pakuote']);
@@ -1450,7 +1451,7 @@ function watchHitsAll(w) {
   // pirmiau prekės, kuriose žodis yra toks pat, kaip įvestas („pienas“), po jų kitos formos
   // („kondensuoto pieno“ desertas, „prie kavos“ sausainiai); kiekvienoje grupėje – pigiausios pirmos
   for (const it of hits) it.y = words.every(x => it.w.includes(x)) ? 0 : 1;
-  return hits.slice().sort((a, b) => a.x - b.x || a.r - b.r || a.y - b.y);
+  return hits.slice().sort((a, b) => a.x - b.x || a.rel - b.rel || a.y - b.y);
 }
 async function loadWatch() {
   const saved = await kv.get('watch');
@@ -1700,7 +1701,7 @@ function recommend() {
   for (const w of WATCH) {
     const all = watchHits(w), hits = all.filter(h => validOn(h, D));
     if (!hits.length) {
-      const later = all.filter(h => !h.r && h.f && h.f > D).map(h => h.f).sort()[0];
+      const later = all.filter(h => !h.rel && h.f && h.f > D).map(h => h.f).sort()[0];
       if (later) soon.set(w.q, later);
       continue;
     }
@@ -1708,7 +1709,7 @@ function recommend() {
     const rel = coreHits(hits);
     // tik „jogurtas su … bananais" – tai ne bananų akcija: prekė laikoma be akcijos
     if (!rel.length) {
-      const later = all.filter(h => !h.r && h.f && h.f > D).map(h => h.f).sort()[0];
+      const later = all.filter(h => !h.rel && h.f && h.f > D).map(h => h.f).sort()[0];
       if (later) soon.set(w.q, later);
       continue;
     }
