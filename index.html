@@ -507,7 +507,7 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
       </div>
-      <button id="filtersBtn" class="iconbtn" type="button" aria-label="Rikiavimas ir filtrai" aria-haspopup="dialog">
+      <button id="filtersBtn" class="iconbtn" type="button" aria-label="Rikiavimas" aria-haspopup="dialog">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
         <span class="dotbadge" id="filtersBadge" hidden></span>
       </button>
@@ -568,22 +568,20 @@
 <dialog id="sheet" class="sheet" aria-labelledby="sheetTitle">
   <form method="dialog">
     <div class="grab" aria-hidden="true"></div>
-    <h2 id="sheetTitle">Rikiavimas ir filtrai</h2>
-    <div class="field-label">Rikiuoti</div>
+    <h2 id="sheetTitle">Rikiavimas</h2>
     <div class="seg" id="sort" role="group" aria-label="Rikiavimas">
       <button type="button" data-sort="price" aria-pressed="true">Kaina</button>
       <button type="button" data-sort="unit" aria-pressed="false">Už kg / l</button>
       <button type="button" data-sort="discount" aria-pressed="false">Nuolaida</button>
     </div>
-    <label class="toggle"><span>Rodyti ir pasibaigusias akcijas</span><input id="all" type="checkbox"></label>
-    <button class="primary" id="sheetDone" value="done">Rodyti</button>
+    <button class="primary" id="sheetDone" value="done" style="margin-top:20px">Rodyti</button>
     <button class="secondary" id="logoutBtn" type="button" hidden>Atsijungti</button>
   </form>
 </dialog>
 
 <script>
 const $ = id => document.getElementById(id);
-const q = $('q'), allBox = $('all'), statusEl = $('status'), resultsEl = $('results'), pagerEl = $('pager');
+const q = $('q'), statusEl = $('status'), resultsEl = $('results'), pagerEl = $('pager');
 const CHAINS = { maxima:'Maxima', iki:'IKI', lidl:'Lidl', rimi:'Rimi', norfa:'Norfa' };
 
 // Būsena laikoma ir adreso juostoje (?q=...&chain=...&sort=...&page=...), kad atnaujinus puslapį ar
@@ -594,7 +592,6 @@ const state = {
   chain: CHAINS[params.get('chain')] ? params.get('chain') : null,
   sort: ['discount', 'price', 'unit'].includes(params.get('sort')) ? params.get('sort') : null,   // null – automatiškai (sortMode)
   page: Math.max(1, parseInt(params.get('page')) || 1),
-  all: params.get('all') === '1',
   view: { pirkiniai: 'basket', krepselis: 'basket', mano: 'watch', stebimos: 'watch' }[params.get('view')] || 'list',   // senos nuorodos irgi
 };
 let timer, lastCounts = null;
@@ -745,10 +742,11 @@ function staleInfo() {
   const t = today(), g = (DATA.generated || '').slice(0, 10), age = g ? -daysLeft(g) : 0;
   const live = DATA.items.filter(it => !it.t || it.t >= t);
   if (!live.length) {
-    const last = DATA.items.map(it => it.t).filter(Boolean).sort().pop();
+    const last = [...Object.values(DATA.ends || {}), ...DATA.items.map(it => it.t)].filter(Boolean).sort().pop();
     return { level: 'all', last, g, age };
   }
-  const have = new Set(DATA.items.map(it => it.c)), now = new Set(live.map(it => it.c));
+  // DATA.ends – kada baigėsi kiekvieno tinklo akcijos (export_static.py): pasibaigusių prekių data.json nėra
+  const have = new Set([...Object.keys(DATA.ends || {}), ...DATA.items.map(it => it.c)]), now = new Set(live.map(it => it.c));
   const gone = [...have].filter(c => !now.has(c) && c in CHAINS);   // tinklas, kurio visos akcijos baigėsi
   if (age >= STALE_DAYS) return { level: 'old', g, age, gone };
   if (gone.length) return { level: 'chains', g, age, gone };
@@ -771,11 +769,6 @@ function renderStale() {
     txt.append(`${s.gone.map(c => CHAINS[c]).join(', ')}: ${s.gone.length > 1 ? 'naujų leidinių' : 'naujo leidinio'} dar nėra – ankstesnės akcijos baigėsi.`);
   }
   box.replaceChildren(txt);
-  if (s.level === 'all' && !state.all) {
-    const b = el('button', 'chip sm', 'Rodyti pasibaigusias'); b.type = 'button';
-    b.onclick = () => { state.all = true; allBox.checked = true; state.page = 1; setView('list'); };
-    box.append(b);
-  }
 }
 function netStatus() {
   const g = (DATA && DATA.generated) || '', d = g ? fmtDate(g.slice(0, 10)) : '';
@@ -960,7 +953,7 @@ function roundRobin(items) {
 
 function browse() {
   const t = today();
-  let items = matchItems(DATA.items.filter(it => state.all || !it.t || it.t >= t), state.q);
+  let items = matchItems(DATA.items.filter(it => !it.t || it.t >= t), state.q);
   // kaip „Stebimose“: pirmiau prekės su tiksliai tuo pačiu žodžiu („kava“), po jų kitos formos („prie kavos“)
   const words = normalize(state.q).split(' ').filter(Boolean);
   for (const it of items) it.y = words.length && !words.every(x => it.w.includes(x)) ? 1 : 0;
@@ -995,8 +988,13 @@ const chainColor = c => `var(--c-${c in CHAINS ? c : 'x'}, var(--muted))`;
 const FROM_RE = /^kaina nuo$/i;
 const isFrom = it => !!it.k && it.k.split(/[,;]\s*/).some(x => FROM_RE.test(x.trim()));
 const priceTxt = it => (isFrom(it) ? 'nuo ' : '') + eur(it.p) + '\u00a0€';   // € neatskiriamas nuo kainos
+// „iki −60 %“ (Rimi): nuolaida ne visoms prekėms tokia – ženkliukas „iki −60%“, o sąlyga po kortele nebekartojama
+const UPTO_RE = /^iki\s*[-−–]\s*(\d+)\s*%$/i;
+const upTo = it => !!it.d && !!it.k && it.k.split(/[,;]\s*/).some(x => { const m = x.trim().match(UPTO_RE); return m && +m[1] === it.d; });
+const discTxt = it => (upTo(it) ? 'iki −' : '−') + it.d + '%';
 const condOf = it => {
-  const k = (it.k || '').split(/[,;]\s*/).filter(x => x.trim() && !FROM_RE.test(x.trim())).join(', ');
+  const up = upTo(it);
+  const k = (it.k || '').split(/[,;]\s*/).filter(x => x.trim() && !FROM_RE.test(x.trim()) && !(up && UPTO_RE.test(x.trim()))).join(', ');
   return k && !/^tik!?$/i.test(k.trim()) ? k : null;
 };
 const chainText = c => `var(--t-${c in CHAINS ? c : 'x'}, var(--muted))`;
@@ -1092,11 +1090,13 @@ function card(r, slot = false) {
     if (r.o || r.d) {
       const was = el('div', 'was');
       if (r.o) was.append(el('span', 'old', eur(r.o) + ' €'));
-      if (r.d) was.append(el('span', 'badge', '−' + r.d + '%'));
+      if (r.d) was.append(el('span', 'badge', discTxt(r)));
       price.append(was);
     }
   } else {
-    price.append(el('div', 'now pct', r.d ? '−' + r.d + '%' : '—'));
+    const pct = el('div', 'now pct', r.d ? '−' + r.d + '%' : '—');
+    if (r.d && upTo(r)) pct.prepend(el('small', 'from', 'iki '));   // kaip „nuo“ prie kainos
+    price.append(pct);
     price.append(el('span', 'na', 'kaina nenurodyta'));
   }
   if (slot) c.classList.add('withslot');
@@ -1201,8 +1201,7 @@ function addPlainUI(q) {
   if (!watchKey(q)) return false;
   const id = plainId('any', q);
   if (BASKET.some(b => b.id === id && !b.done)) { toast(`„${q}“ jau yra pirkinių sąraše`); return true; }
-  const t = today(), hits = coreHits(watchHits({ q, seen: [] })).filter(h => validOn(h, t) && h.p != null);
-  const best = hits.slice().sort((a, b) => a.p - b.p)[0];
+  const hits = coreHits(watchHits({ q, seen: [] })), best = cheapest(hits, today());   // kaip „Mano prekėse“
   const h = best ? `${akcijos(hits.length)} · nuo ${priceTxt(best)} (${CHAINS[best.c]})` : null;
   BASKET = BASKET.filter(b => b.id !== id);   // nupirkta tokia pati – keičiama nauja
   BASKET.push({ id, it: { c: 'any', n: cap(q), plain: true, h }, done: false, at: Date.now(), q });
@@ -1394,7 +1393,7 @@ function basketRow(b, showStore = false) {
   info.append(el('div', 'wn', dispName(it.n)), sub);
   const pr = el('div', 'wpr');
   pr.append(el('span', 'wp', it.p != null ? priceTxt(it) : (it.d || it.plain ? '' : '—')));
-  if (it.d) pr.append(el('span', 'badge', '−' + it.d + '%'));
+  if (it.d) pr.append(el('span', 'badge', discTxt(it)));
   a.append(info, pr);
   const x = el('button', 'wx'); x.type = 'button'; x.innerHTML = ICON.rm;
   x.setAttribute('aria-label', 'Pašalinti iš sąrašo: ' + it.n);
@@ -1423,6 +1422,12 @@ let NEWNOW = null;   // per šį apsilankymą skiltyje rodomos naujos akcijos: M
 const plural = (n, one, few, many) => { const d = n % 10, t = n % 100;
   return d === 1 && t !== 11 ? one : d >= 2 && (t < 10 || t > 20) ? few : many; };
 const akcijos = n => `${n} ${plural(n, 'akcija', 'akcijos', 'akcijų')}`;
+// „nuo X €“: pigiausia iš tų, kurios rodomos pirmos – su tiksliai tuo žodžiu (y = 0: „sūris“, ne „sūrio kamuoliukai“);
+// jei tokių nėra – iš visų. d – tik tą dieną galiojančios
+function cheapest(core, d) {
+  const ok = core.filter(h => h.p != null && (!d || validOn(h, d))), exact = ok.filter(h => !h.y);
+  return (exact.length ? exact : ok).reduce((a, b) => (!a || b.p < a.p ? b : a), null);
+}
 const naujos = n => `${n} ${plural(n, 'nauja', 'naujos', 'naujų')}`;
 const watchKey = q => normalize(q);
 const findWatch = q => WATCH.find(w => watchKey(w.q) === watchKey(q));
@@ -1548,7 +1553,7 @@ function watchRow(it, isNew, w) {
   info.append(el('div', 'wn', dispName(it.n)), sub);
   const pr = el('div', 'wpr');
   pr.append(el('span', 'wp', it.p != null ? priceTxt(it) : (it.d ? '' : '—')));
-  if (it.d) pr.append(el('span', 'badge', '−' + it.d + '%'));
+  if (it.d) pr.append(el('span', 'badge', discTxt(it)));
   a.append(el('span', 'dot'), info, pr);
   const b = el('button', 'slot wcart'); b.type = 'button';
   const paint = () => {
@@ -1618,9 +1623,9 @@ function renderWatch() {
     if (nNew) h.append(el('span', 'new', naujos(nNew)));
     const m = el('span', 'wm');
     if (core.length) {   // skaičius ir „nuo" – tik tikrai atitinkančių
-      const prices = core.map(it => it.p).filter(p => p != null);
+      const best = cheapest(core);
       m.append(akcijos(core.length));
-      if (prices.length) { m.append(' · nuo '); m.append(el('b', null, eur(Math.min(...prices)) + ' €')); }
+      if (best) { m.append(' · nuo '); m.append(el('b', null, priceTxt(best))); }
     }
     h.append(m);
     const x = el('button', 'wx'); x.type = 'button'; x.setAttribute('aria-label', 'Nebestebėti: ' + w.q);
@@ -1996,7 +2001,7 @@ function openToBasket(r, stores) {
     const cb = el('input'); cb.type = 'checkbox'; cb.checked = !same && !other; cb.disabled = !!same;
     const txt = el('span', 'tb-t');
     txt.append(el('b', null, cap(p.q)));
-    const line = p.it ? `${stores.length > 1 ? CHAINS[p.c] + ' · ' : ''}${dispName(p.it.n)} · ${p.it.p != null ? priceTxt(p.it) : '−' + p.it.d + '%'}`
+    const line = p.it ? `${stores.length > 1 ? CHAINS[p.c] + ' · ' : ''}${dispName(p.it.n)} · ${p.it.p != null ? priceTxt(p.it) : discTxt(p.it)}`
                       : `be akcijos${stores.length > 1 ? ' (' + CHAINS[p.c] + ')' : ''}` + (p.hint ? ` · ${p.hint}` : '');
     txt.append(el('span', 'tb-l' + (p.it ? '' : ' plain'), line));
     if (same) txt.append(el('span', 'tb-n', 'jau sąraše'));
@@ -2071,7 +2076,7 @@ function recCard() {
         const cheap = Object.entries(t.per).filter(([, y]) => y.v != null).sort((a, b) => a[1].v - b[1].v)[0];
         row.append(el('span', 'rv muted', cheap ? `nėra akcijos · pigiausia ${CHAINS[cheap[0]]}` : 'nėra akcijos'));
       } else {
-        const it = x.it, price = it.p != null ? priceTxt(it) : '−' + it.d + '%';
+        const it = x.it, price = it.p != null ? priceTxt(it) : discTxt(it);
         const same = it.p != null && !isFrom(it) && eur(it.p) === eur(x.v);   // 1 kg / 1 l pakuotė – kaina kartotųsi
         const unit = t.byUnit && x.v != null && !same ? ` · ${it.uv.calc && it.uv.base !== 1 ? '≈ ' : ''}${eur(x.v)} €/${it.uv.unit}` : '';   // ≈ – apskaičiuota iš kiekio
         const diff = x.v != null && t.best ? x.v / t.best - 1 : null;
@@ -2143,7 +2148,7 @@ function recCard() {
         row.append(top);
         for (const [q, it] of ch.pick) {   // kiekviena lyginta prekė atskirai, kad netinkamą būtų galima paslėpti
           const ln = el('div', 'cmpi');
-          ln.append(el('b', null, q.charAt(0).toUpperCase() + q.slice(1)), ` ${it.p != null ? priceTxt(it) : '−' + it.d + '%'}`);
+          ln.append(el('b', null, q.charAt(0).toUpperCase() + q.slice(1)), ` ${it.p != null ? priceTxt(it) : discTxt(it)}`);
           ln.append(pickLine(q, it, true));
           row.append(ln);
         }
@@ -2215,7 +2220,6 @@ function syncUrl() {
   if (state.q) p.set('q', state.q);
   if (state.chain) p.set('chain', state.chain);
   if (state.sort) p.set('sort', state.sort);
-  if (state.all) p.set('all', '1');
   if (state.page > 1) p.set('page', state.page);
   if (state.view !== 'list') p.set('view', state.view === 'basket' ? 'pirkiniai' : 'mano');
   const qs = p.toString();
@@ -2225,7 +2229,7 @@ function syncUrl() {
 async function load(more = false) {
   syncUrl();
   for (const x of $('sort').children) x.setAttribute('aria-pressed', String(x.dataset.sort === sortMode()));
-  $('filtersBadge').hidden = !state.sort && !state.all;
+  $('filtersBadge').hidden = !state.sort;
   if (!DATA) {
     statusEl.textContent = 'Kraunama…';
     resultsEl.replaceChildren(...[0, 1, 2, 3].map(() => el('div', 'skel')));
@@ -2256,10 +2260,10 @@ async function load(more = false) {
     statusEl.textContent = '';
     pagerEl.replaceChildren();
     const box = el('div', 'empty');
-    const noLive = staleInfo()?.level === 'all' && !state.all;
+    const noLive = staleInfo()?.level === 'all';
     box.append(el('div', 'big', noLive ? '🗓️' : '🔍'), el('h2', null, noLive ? 'Galiojančių akcijų nėra' : 'Nieko neradome'),
       el('p', null, noLive
-        ? 'Laukiama naujų leidinių. Ankstesnes akcijas galite peržiūrėti mygtuku „Rodyti pasibaigusias“ viršuje.'
+        ? 'Laukiama naujų leidinių – jie atsiras, kai kompiuteris atnaujins duomenis.'
         : state.q ? `Pagal „${state.q}“ akcijų nėra. Pabandykite trumpesnį ar kitą žodį.` : 'Šiuo metu akcijų nėra.'));
     if (state.q && !state.chain) box.append(watchToggle(state.q, 'chip'));
     if (state.chain) {
@@ -2293,7 +2297,6 @@ function onInput(now = false) {
 q.addEventListener('input', () => onInput());
 q.addEventListener('keydown', e => { if (e.key === 'Enter') { q.blur(); onInput(true); } });
 $('clear').onclick = () => { q.value = ''; q.focus(); onInput(true); };
-allBox.addEventListener('change', () => { state.all = allBox.checked; state.page = 1; load(); });
 $('sort').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || b.dataset.sort === sortMode()) return;
   state.sort = b.dataset.sort; state.page = 1; load();
@@ -2310,7 +2313,6 @@ new IntersectionObserver(([e]) => document.querySelector('header').classList.tog
   .observe(document.querySelector('.brand'));
 
 q.value = state.q;
-allBox.checked = state.all;
 $('searchBox').classList.toggle('has-text', !!q.value);
 if (matchMedia('(min-width: 700px) and (hover: hover)').matches && state.view === 'list') q.focus();   // ne telefone (klaviatūra uždengtų ekraną)
 for (const t of document.querySelectorAll('.tab')) t.onclick = () => { if (t.dataset.view !== state.view) setView(t.dataset.view); };
