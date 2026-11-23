@@ -104,7 +104,7 @@
   .stale.strong { background:var(--warn-soft); border:1px solid color-mix(in srgb, var(--warn) 35%, transparent); }
   .stale .st-t { flex:1; min-width:200px; }
   .stale small { display:block; margin-top:2px; color:var(--muted); font-size:0.7812rem; }
-  #status { color:var(--muted); font-size:0.8125rem; margin:6px 4px 10px; min-height:18px; }
+  #status { color:var(--muted); font-size:0.8125rem; margin:0 4px 0; min-height:44px; }
 
   /* ---------- Prisijungimas ---------- */
   [hidden] { display:none !important; }
@@ -335,7 +335,7 @@
   body.v-watch header { display:none; }
   #status { display:flex; align-items:center; gap:8px; }
   .wbtn { margin-left:auto; border:0; background:transparent; color:var(--text); font-size:0.8125rem; font-weight:700;
-          padding:6px 2px; cursor:pointer; white-space:nowrap; }
+          min-height:44px; padding:0 10px; margin-right:-10px; cursor:pointer; white-space:nowrap; }   /* 44 px – patogu pirštu */
   .wadd { display:flex; gap:8px; margin:6px 0 6px; }
   .wadd input { flex:1; min-width:0; height:50px; padding:0 16px; font-size:1.0625rem; border:1px solid var(--line); border-radius:15px;
                 background:var(--surface); color:var(--text); box-shadow:var(--shadow); -webkit-appearance:none; appearance:none; }
@@ -748,10 +748,15 @@ function staleInfo() {
   // DATA.ends – kada baigėsi kiekvieno tinklo akcijos (export_static.py): pasibaigusių prekių data.json nėra
   const have = new Set([...Object.keys(DATA.ends || {}), ...DATA.items.map(it => it.c)]), now = new Set(live.map(it => it.c));
   const gone = [...have].filter(c => !now.has(c) && c in CHAINS);   // tinklas, kurio visos akcijos baigėsi
-  if (age >= STALE_DAYS) return { level: 'old', g, age, gone };
-  if (gone.length) return { level: 'chains', g, age, gone };
+  // savaitės leidinys baigėsi, bet kelios ilgesnės akcijos dar galioja (Maxima: 61 prekė iš ~300) – irgi pranešama
+  const part = Object.entries(DATA.cats || {}).filter(([c, end]) => c in CHAINS && now.has(c) && end < t)
+    .map(([c, end]) => ({ c, end, n: live.filter(it => it.c === c).length }));
+  if (age >= STALE_DAYS) return { level: 'old', g, age, gone, part };
+  if (gone.length || part.length) return { level: 'chains', g, age, gone, part };
   return null;
 }
+// „Maxima: savaitės leidinys baigėsi 11.23, naujo dar nėra – rodomos tik ilgiau galiojančios akcijos (61).“
+const partTxt = part => (part || []).map(x => ` ${CHAINS[x.c]}: savaitės leidinys baigėsi ${fmtDate(x.end)}, naujo dar nėra – rodomos tik ilgiau galiojančios akcijos (${x.n}).`).join('');
 function renderStale() {
   const box = $('stale'), s = staleInfo();
   box.hidden = !s;
@@ -764,9 +769,11 @@ function renderStale() {
       el('small', null, 'Duomenis atnaujina kompiuteris (atnaujinti.bat) – patikrinkite, ar jis įjungtas.'));
   } else if (s.level === 'old') {
     txt.append(el('b', null, `Duomenys atnaujinti prieš ${s.age} d.`), ` Naujausių leidinių gali trūkti.`
-      + (s.gone.length ? ` Be galiojančių akcijų: ${s.gone.map(c => CHAINS[c]).join(', ')}.` : ''));
+      + (s.gone.length ? ` Be galiojančių akcijų: ${s.gone.map(c => CHAINS[c]).join(', ')}.` : '')
+      + partTxt(s.part));
   } else {
-    txt.append(`${s.gone.map(c => CHAINS[c]).join(', ')}: ${s.gone.length > 1 ? 'naujų leidinių' : 'naujo leidinio'} dar nėra – ankstesnės akcijos baigėsi.`);
+    txt.append(((s.gone.length ? `${s.gone.map(c => CHAINS[c]).join(', ')}: ${s.gone.length > 1 ? 'naujų leidinių' : 'naujo leidinio'} dar nėra – ankstesnės akcijos baigėsi.` : '')
+      + partTxt(s.part)).trim());
   }
   box.replaceChildren(txt);
 }
@@ -850,7 +857,7 @@ const SIDE_AFTER = new Set(['skonio', 'idaru', 'idaro', 'padazu', 'padaze', 'aro
 const MOD_HEADS = new Set(['gerimas', 'gerimai', 'sokoladas', 'sokoladai', 'sultinys', 'sultinio', 'padazas', 'desertas', 'desertai',
   'kremas', 'uzpilas', 'traskuciai', 'skonis', 'jogurtas', 'jogurtai', 'sausainiai', 'batonelis', 'batoneliai', 'ledai', 'kokteilis',
   'saldainiai', 'kubeliai', 'prieskoniai', 'aromatas', 'suris', 'misinys', 'produktai',
-  'zvaigzdes', 'gira'].map(x => stem(x)));   // „gira“ – „Duonos gira“ nėra duona   // „zvaigzdes“ – prekės ženklas „PIENO ŽVAIGŽDĖS“
+  'zvaigzdes', 'gira', 'tirpiklis'].map(x => stem(x)));   // „zvaigzdes“ – ženklas „PIENO ŽVAIGŽDĖS“; „Duonos gira“, „Ledo tirpiklis“
 // įnagininkas (kuo?) pagal tikrą žodį su diakritikais: „sūriu“, „agurkais“, „šokoladu“, „obuoliais“ – bet ne „rūšių“, „speltų“
 // (be diakritikų „-u“ ir „-ų“ nebeatskiriami)
 const INSTR_RE = /(u|ais|omis|ėmis|imis|umis)$/;
@@ -934,8 +941,9 @@ function matchItems(items, text) {
 }
 /* @paieska:pabaiga */
 
-// be paieškos – didžiausios nuolaidos (įdomiausios akcijos), su paieška – pigiausios; kol naudotojas nepasirinko pats
-const sortMode = () => state.sort || (state.q.trim() ? 'price' : 'discount');
+// be paieškos – didžiausios nuolaidos (įdomiausios akcijos), su paieška – pigiausios už kg / l; kol naudotojas nepasirinko pats
+// ieškant – pigiausia už kg / l (pakuotės kaina klaidina: 65 g skrebučiai „pigesni“ už 700 g duoną)
+const sortMode = () => state.sort || (state.q.trim() ? 'unit' : 'discount');
 // pradinis sąrašas (be paieškos ir filtrų): tinklai pakaitomis, kad nedingtų tie, kurie retai nurodo seną kainą (Lidl)
 const mixChains = () => !state.sort && !state.q.trim() && !state.chain;
 function roundRobin(items) {
@@ -951,6 +959,9 @@ function roundRobin(items) {
   return out;
 }
 
+// kaina už kg / l: pirmiau kg / l, po jų už vnt., tada be kainos už vienetą (tarp jų – pagal kainą, sort() stabilus)
+const uGrp = it => !it.uv ? 2 : uClass(it.uv.unit) === 'm' ? 0 : 1;
+const unitCmp = (a, b) => uGrp(a) - uGrp(b) || (a.uv && b.uv ? a.uv.v - b.uv.v : 0);
 function browse() {
   const t = today();
   let items = matchItems(DATA.items.filter(it => !it.t || it.t >= t), state.q);
@@ -965,8 +976,7 @@ function browse() {
     items = items.slice().sort((a, b) => rel(a, b) || (a.p == null) - (b.p == null) || (b.e ?? -1) - (a.e ?? -1));   // be kainos – po kitų
     if (mixChains()) items = roundRobin(items);
   } else if (mode === 'unit') {   // kaina už kg / l; be jos – po kitų, pagal kainą
-    const grp = it => !it.uv ? 2 : uClass(it.uv.unit) === 'm' ? 0 : 1;   // kg / l, po jų už vnt., tada be kainos už vienetą
-    items = items.slice().sort((a, b) => rel(a, b) || grp(a) - grp(b) || (a.uv && b.uv ? a.uv.v - b.uv.v : 0));
+    items = items.slice().sort((a, b) => rel(a, b) || unitCmp(a, b));
   } else items = items.slice().sort(rel);   // data.json jau surikiuotas pagal kainą; sort() stabilus
   const total = items.length, pages = Math.max(1, Math.ceil(total / PER_PAGE));
   const page = Math.min(Math.max(1, state.page), pages);
@@ -1073,7 +1083,10 @@ function card(r, slot = false) {
   info.append(el('h3', 'name', dispName(r.n)));
   // kaina už kg / l: leidinio, o jei jos nėra arba ji klaidinga (uv.fixed) – apskaičiuota iš kiekio, su „≈“
   const leafU = r.u && !(r.uv && (r.uv.fixed || r.uv.noKg)) ? r.u : null;
-  const calcU = !leafU && r.uv && r.uv.calc && (r.uv.fixed || r.uv.base !== 1) ? `≈ ${eur(r.uv.v)} €/${r.uv.unit}` : null;   // „1 l“ – tas pats, kas kaina
+  // apskaičiuota rodoma visada, kai ji pakeičia leidinio (klaidingą ar tik „Eur/vnt.“); kitaip – tik rikiuojant už kg / l
+  // (be leidinio kainos už kg dažniausiai ne maistas: „Antklodė 700 g“, „Lūpų kaukė 20 g“). „1 l“ – tas pats, kas kaina
+  const calcU = !leafU && r.uv && r.uv.calc && (r.uv.fixed || r.uv.noKg || (sortMode() === 'unit' && r.uv.base !== 1))
+    ? `≈ ${eur(r.uv.v)} €/${r.uv.unit}` : null;
   const meta = [r.q, leafU || calcU].filter(Boolean).join(' · ');
   if (meta) {
     const m = el('div', 'meta', meta);
@@ -1202,7 +1215,7 @@ function addPlainUI(q) {
   const id = plainId('any', q);
   if (BASKET.some(b => b.id === id && !b.done)) { toast(`„${q}“ jau yra pirkinių sąraše`); return true; }
   const hits = coreHits(watchHits({ q, seen: [] })), best = cheapest(hits, today());   // kaip „Mano prekėse“
-  const h = best ? `${akcijos(hits.length)} · nuo ${priceTxt(best)} (${CHAINS[best.c]})` : null;
+  const h = best ? `${akcijos(hits.length)} · nuo ${fromTxt(best)} (${CHAINS[best.c]})` : null;
   BASKET = BASKET.filter(b => b.id !== id);   // nupirkta tokia pati – keičiama nauja
   BASKET.push({ id, it: { c: 'any', n: cap(q), plain: true, h }, done: false, at: Date.now(), q });
   saveBasket(true);
@@ -1424,10 +1437,17 @@ const plural = (n, one, few, many) => { const d = n % 10, t = n % 100;
 const akcijos = n => `${n} ${plural(n, 'akcija', 'akcijos', 'akcijų')}`;
 // „nuo X €“: pigiausia iš tų, kurios rodomos pirmos – su tiksliai tuo žodžiu (y = 0: „sūris“, ne „sūrio kamuoliukai“);
 // jei tokių nėra – iš visų. d – tik tą dieną galiojančios
+// Lyginama už kg / l (arba už vnt., jei tokių daugiau – kiaušiniai), kaip „Kur pirkti“; be kainos už vienetą – pakuotės kaina
 function cheapest(core, d) {
-  const ok = core.filter(h => h.p != null && (!d || validOn(h, d))), exact = ok.filter(h => !h.y);
-  return (exact.length ? exact : ok).reduce((a, b) => (!a || b.p < a.p ? b : a), null);
+  const ok = core.filter(h => h.p != null && (!d || validOn(h, d))), exact = ok.filter(h => !h.y), pool = exact.length ? exact : ok;
+  const cnt = { m: 0, vnt: 0 };
+  for (const h of pool) if (h.uv) cnt[uClass(h.uv.unit)]++;
+  const cls = cnt.m >= cnt.vnt ? 'm' : 'vnt', byU = pool.filter(h => h.uv && uClass(h.uv.unit) === cls);
+  if (byU.length) return byU.reduce((a, b) => (b.uv.v < a.uv.v ? b : a));
+  return pool.reduce((a, b) => (!a || b.p < a.p ? b : a), null);
 }
+// „nuo 1,29 €/kg“ arba „nuo 0,99 €“
+const fromTxt = it => it.uv ? `${eur(it.uv.v)}\u00a0€/${it.uv.unit}` : priceTxt(it);
 const naujos = n => `${n} ${plural(n, 'nauja', 'naujos', 'naujų')}`;
 const watchKey = q => normalize(q);
 const findWatch = q => WATCH.find(w => watchKey(w.q) === watchKey(q));
@@ -1484,9 +1504,9 @@ function watchHitsAll(w) {
   const t = today(), words = normalize(w.q).split(' ');
   const hits = matchItems(DATA.items.filter(it => !it.t || it.t >= t), w.q);
   // pirmiau prekės, kuriose žodis yra toks pat, kaip įvestas („pienas“), po jų kitos formos
-  // („kondensuoto pieno“ desertas, „prie kavos“ sausainiai); kiekvienoje grupėje – pigiausios pirmos
+  // („kondensuoto pieno“ desertas, „prie kavos“ sausainiai); kiekvienoje grupėje – pigiausios už kg / l pirmos
   for (const it of hits) it.y = words.every(x => it.w.includes(x)) ? 0 : 1;
-  return hits.slice().sort((a, b) => a.x - b.x || a.rel - b.rel || a.y - b.y);
+  return hits.slice().sort((a, b) => a.x - b.x || a.rel - b.rel || a.y - b.y || unitCmp(a, b));
 }
 async function loadWatch() {
   const saved = await kv.get('watch');
@@ -1625,7 +1645,7 @@ function renderWatch() {
     if (core.length) {   // skaičius ir „nuo" – tik tikrai atitinkančių
       const best = cheapest(core);
       m.append(akcijos(core.length));
-      if (best) { m.append(' · nuo '); m.append(el('b', null, priceTxt(best))); }
+      if (best) { m.append(' · nuo '); m.append(el('b', null, fromTxt(best))); }
     }
     h.append(m);
     const x = el('button', 'wx'); x.type = 'button'; x.setAttribute('aria-label', 'Nebestebėti: ' + w.q);
