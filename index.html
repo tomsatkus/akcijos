@@ -808,6 +808,8 @@ function effDisc(it) {
 // kaina už kg arba l (skystis ir svoris lyginami kartu): iš leidinio „5,98 Eur/kg", o jei jos nėra – iš kiekio
 const num = s => +String(s).replace(',', '.');
 // klasė: svoris ir tūris lyginami kartu (kg ~ l), vienetai – atskirai
+const UNIT_MINOR = 0.3;   // „Kur pirkti“: kg ar l prekės, kurių ≤ 30 % – kita prekė, nelyginamos (ledai, majonezas – 40–50 %, lieka)
+const UNIT_FIX = 5;   // kiek kartų leidinio kaina už kg / l turi skirtis nuo apskaičiuotos, kad būtų laikoma klaida
 const uClass = unit => unit === 'vnt' ? 'vnt' : 'm';
 // „2 x 500 g“, „2 × 400 g“, „2 dėž. × 100 g“ (kaina už kelias pakuotes)
 const QTY_RE = /(?:(\d+)\s*(?:\p{L}{2,4}\.\s*)?[x×]\s*)?(\d+(?:,\d+)?)\s*(kg|g|ml|l|vnt)\.?(?![\p{L}\d])/giu;
@@ -815,7 +817,19 @@ function unitValue(it) {
   // 1) leidinio kaina už vienetą; kai kelios („34,22 / 30,88 Eur/kg") – pirmoji, t. y. mažiausios pakuotės
   const u = (it.u || '').match(/(\d+,\d{2})(?:\s*\/\s*\d+,\d{2})*\s*Eur\/(kg|l|vnt)/i);
   const q = qtyBase(it);
-  if (u) { const unit = u[2].toLowerCase(); return { v: num(u[1]), unit, calc: false, base: q && q.unit === unit ? q.base : null }; }
+  if (u) {
+    const unit = u[2].toLowerCase(), v = num(u[1]), base = q && q.unit === unit ? q.base : null;
+    // leidinio kaina už kg / l, kelis kartus nutolusi nuo apskaičiuotos – leidinio klaida (pvz. „0,74 Eur/kg“ vietoj 7,38):
+    // naudojama apskaičiuota. Riba 5 kartai: 2–3 kartų skirtumas dažnai teisingas („3 už 4,77 €“, dviguba pakuotė).
+    // Už vnt. neperskaičiuojama – neaišku, ar už pakuotę, ar už vienetą.
+    if (unit !== 'vnt' && base && it.p != null && v > 0) {
+      const calc = it.p / base, ratio = v / calc;
+      if (ratio >= UNIT_FIX || ratio <= 1 / UNIT_FIX) return { v: calc, unit, calc: true, base, fixed: v };
+    }
+    // leidinyje tik „Eur/vnt.“, bet kiekis gramais / litrais („200 g · 2,99 Eur/vnt.“) – kainos už kg / l nėra: apskaičiuojama
+    if (unit === 'vnt' && q && q.unit !== 'vnt' && it.p != null) return { v: it.p / q.base, unit: q.unit, calc: true, base: q.base, noKg: true };
+    return { v, unit, calc: false, base };
+  }
   if (it.p == null || !q) return null;
   return { v: it.p / q.base, unit: q.unit, calc: true, base: q.base };
 }
@@ -843,7 +857,7 @@ const SIDE_AFTER = new Set(['skonio', 'idaru', 'idaro', 'padazu', 'padaze', 'aro
 const MOD_HEADS = new Set(['gerimas', 'gerimai', 'sokoladas', 'sokoladai', 'sultinys', 'sultinio', 'padazas', 'desertas', 'desertai',
   'kremas', 'uzpilas', 'traskuciai', 'skonis', 'jogurtas', 'jogurtai', 'sausainiai', 'batonelis', 'batoneliai', 'ledai', 'kokteilis',
   'saldainiai', 'kubeliai', 'prieskoniai', 'aromatas', 'suris', 'misinys', 'produktai',
-  'zvaigzdes'].map(x => stem(x)));   // „zvaigzdes“ – prekės ženklas „PIENO ŽVAIGŽDĖS“
+  'zvaigzdes', 'gira'].map(x => stem(x)));   // „gira“ – „Duonos gira“ nėra duona   // „zvaigzdes“ – prekės ženklas „PIENO ŽVAIGŽDĖS“
 // įnagininkas (kuo?) pagal tikrą žodį su diakritikais: „sūriu“, „agurkais“, „šokoladu“, „obuoliais“ – bet ne „rūšių“, „speltų“
 // (be diakritikų „-u“ ir „-ų“ nebeatskiriami)
 const INSTR_RE = /(u|ais|omis|ėmis|imis|umis)$/;
@@ -864,12 +878,22 @@ function sideAfter(it, j) {   // „bananų ir braškių skonio": iki 3 žodži�
   }
   return false;
 }
+// vietininkas (kur?): „tunas aliejuje“, „tunai savo sultyse“, „silkė padaže“ – prekė yra kas kita, ieškomas žodis tik terpė.
+// Tikrinamas tikras žodis su diakritikais (kaip instr()): be jų „košė“ (kose) atrodytų kaip „-ose“.
+// Vienaskaitos „-e“ („padaže“) nelaikomas – per daug sutampa su kitomis formomis
+const LOC_RE = /(uje|yje|oje|ėje|yse|uose|ose|ėse)$/;
+function locative(it, w) {
+  if (!it.dia) { it.dia = new Map(); for (const x of it.n.split(/[^\p{L}0-9]+/u)) if (x) it.dia.set(normalize(x), x); }
+  const o = it.dia.get(w);
+  return !!o && LOC_RE.test(o.toLowerCase());
+}
 function primaryHit(it, tok, raw) {
   return it.w.some((w, j) => (it.st[j] === tok || w.startsWith(raw))
     && !it.w.slice(Math.max(0, j - 5), j).some(x => SIDE_BEFORE.has(x)) && !sideAfter(it, j)
     && !(instr(it, w) && (it.w.slice(Math.max(0, j - 8), j - 5).some(x => SIDE_BEFORE.has(x)) || coatedWith(it, j)))
     && !SIDE_FOR.has(it.w[j - 1]) && !SIDE_FOR.has(it.w[j - 2])   // „Sausainiai PRIE KAVOS“, „skirta kavai“
     && !(w !== raw && modAfter(it, j))
+    && !(w !== raw && locative(it, w))   // „aliejuje“ ieškant „aliejus“
     && !(w !== raw && dativeOf(raw).includes(w)   // „Sirupas kavai“, „Padažas … vištienai“ – skirta tam, ne pati prekė,
          && it.w.slice(Math.max(0, j - 3), j).some(x => x.length > 3 && /(as|is|ys|us)$/.test(x) && !/aus$/.test(x))   /* „stiliaus“ – kilmininkas */));   // bet ne „Tirpiajai kavai JACOBS“ (nuolaida kavai)
 }
@@ -1049,9 +1073,15 @@ function card(r, slot = false) {
   const body = el('div', 'body');
   const info = el('div', 'info');
   info.append(el('h3', 'name', dispName(r.n)));
-  const calcU = !r.u && r.uv && r.uv.calc && sortMode() === 'unit' ? `≈ ${eur(r.uv.v)} €/${r.uv.unit}` : null;   // apskaičiuota iš kiekio
-  const meta = [r.q, r.u || calcU].filter(Boolean).join(' · ');
-  if (meta) info.append(el('div', 'meta', meta));
+  // kaina už kg / l: leidinio, o jei jos nėra arba ji klaidinga (uv.fixed) – apskaičiuota iš kiekio, su „≈“
+  const leafU = r.u && !(r.uv && (r.uv.fixed || r.uv.noKg)) ? r.u : null;
+  const calcU = !leafU && r.uv && r.uv.calc && (r.uv.fixed || r.uv.base !== 1) ? `≈ ${eur(r.uv.v)} €/${r.uv.unit}` : null;   // „1 l“ – tas pats, kas kaina
+  const meta = [r.q, leafU || calcU].filter(Boolean).join(' · ');
+  if (meta) {
+    const m = el('div', 'meta', meta);
+    if (r.uv && r.uv.fixed) m.title = `Leidinyje nurodyta ${eur(r.uv.fixed)} €/${r.uv.unit} – neatitinka kainos ir kiekio, rodoma apskaičiuota`;
+    info.append(m);
+  }
 
   const price = el('div', 'price');
   if (r.p != null) {
@@ -1706,13 +1736,19 @@ function recommend() {
       continue;
     }
     // tik tikrai atitinkančios: pati prekė, ne „… su sūriu“; tiksliai tas žodis, ne kita forma
-    const rel = coreHits(hits);
+    const rel0 = coreHits(hits);
     // tik „jogurtas su … bananais" – tai ne bananų akcija: prekė laikoma be akcijos
-    if (!rel.length) {
+    if (!rel0.length) {
       const later = all.filter(h => !h.rel && h.f && h.f > D).map(h => h.f).sort()[0];
       if (later) soon.set(w.q, later);
       continue;
     }
+    // kg ir l lyginami kartu (ledai, majonezas, grietinėlė nurodomi ir g, ir ml), bet kai vienas vienetas aiškiai vyrauja
+    // (duona – 35 kg ir 2 l, arbata – 6 kg ir 2 l), mažumos prekės greičiausiai kita prekė („Duonos gira“): į palyginimą neįtraukiamos
+    const um = { kg: 0, l: 0 };
+    for (const h of rel0) if (h.uv && h.uv.unit in um) um[h.uv.unit]++;
+    const minor = um.kg && um.l && Math.min(um.kg, um.l) / (um.kg + um.l) <= UNIT_MINOR ? (um.kg < um.l ? 'kg' : 'l') : null;
+    const rel = minor ? rel0.filter(h => !(h.uv && h.uv.unit === minor)) : rel0;
     // lyginimo vienetas: dažniausias tarp prekių (kg / l arba vnt.); kitokio vieneto prekės – „nepalyginama"
     const cnt = { m: 0, vnt: 0 };
     for (const h of rel) if (h.uv) cnt[uClass(h.uv.unit)]++;
