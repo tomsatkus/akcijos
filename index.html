@@ -175,6 +175,10 @@
   .store .dot { width:7px; height:7px; border-radius:50%; background:var(--c); }
   .pg-ref { display:inline-flex; align-items:center; gap:3px; }
   .pg-ref::before { content:"·"; margin-right:3px; }
+  /* proginis (Kalėdų ir pan.) leidinys: įprastos šventinio asortimento kainos, ne būtinai akcija */
+  .event { display:inline-block; font-size:0.6875rem; font-weight:700; color:#0f6b3a; background:#e3f4ea; border-radius:6px;
+           padding:1px 6px; margin-left:6px; white-space:nowrap; }
+  @media (prefers-color-scheme: dark) { .event { color:#8fe0b0; background:#173826; } }
   .when { margin-left:auto; white-space:nowrap; }
   .when.soon { color:var(--warn); font-weight:600; }
   .body { display:flex; gap:12px; align-items:flex-start; }
@@ -465,6 +469,9 @@
   .ps-in { width:100%; box-sizing:border-box; font:inherit; font-size:1rem; padding:12px 14px; margin:0 0 14px; border:1.5px solid var(--line);
            border-radius:12px; background:transparent; color:var(--text); }
   .tb-sub.err { color:var(--warn); }
+  .ps-tip { margin:-6px 0 14px; color:var(--muted); font-size:0.8125rem; }
+  .sg-steps { margin:0 0 16px; padding-left:22px; display:grid; gap:6px; font-size:0.9375rem; }
+  #shareGate .primary.ok { background:var(--good); color:#fff; }
   .rec-note { margin-top:4px; font-size:0.7188rem; color:var(--muted); }
   .rec-combo { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:0.875rem; }
   .rec-combo b { font-weight:700; }
@@ -750,11 +757,12 @@ function staleInfo() {
     return { level: 'all', last, g, age };
   }
   // DATA.ends – kada baigėsi kiekvieno tinklo akcijos (export_static.py): pasibaigusių prekių data.json nėra
-  const have = new Set([...Object.keys(DATA.ends || {}), ...DATA.items.map(it => it.c)]), now = new Set(live.map(it => it.c));
+  // proginio (Kalėdų) leidinio prekės (it.ev) – ne savaitinio pakaitalas: tinklas be savaitinių akcijų laikomas „baigusiu“
+  const have = new Set([...Object.keys(DATA.ends || {}), ...DATA.items.map(it => it.c)]), now = new Set(live.filter(it => !it.ev).map(it => it.c));
   const gone = [...have].filter(c => !now.has(c) && c in CHAINS);   // tinklas, kurio visos akcijos baigėsi
   // savaitės leidinys baigėsi, bet kelios ilgesnės akcijos dar galioja (Maxima: 61 prekė iš ~300) – irgi pranešama
   const part = Object.entries(DATA.cats || {}).filter(([c, end]) => c in CHAINS && now.has(c) && end < t)
-    .map(([c, end]) => ({ c, end, n: live.filter(it => it.c === c).length }));
+    .map(([c, end]) => ({ c, end, n: live.filter(it => it.c === c && !it.ev).length }));
   if (age >= STALE_DAYS) return { level: 'old', g, age, gone, part };
   if (gone.length || part.length) return { level: 'chains', g, age, gone, part };
   return null;
@@ -814,6 +822,14 @@ const num = s => +String(s).replace(',', '.');
 // klasė: svoris ir tūris lyginami kartu (kg ~ l), vienetai – atskirai
 const UNIT_MINOR = 0.3;   // „Kur pirkti“: kg ar l prekės, kurių ≤ 30 % – kita prekė, nelyginamos (ledai, majonezas – 40–50 %, lieka)
 const UNIT_FIX = 5;   // kiek kartų leidinio kaina už kg / l turi skirtis nuo apskaičiuotos, kad būtų laikoma klaida
+// kg ir l lyginami kartu, bet kai vienas vienetas aiškiai vyrauja (duona – 35 kg ir 2 l, arbata – 6 kg ir 2 l),
+// mažumos prekės greičiausiai kita prekė („Duonos gira“, „šalta arbata“): neįtraukiamos („Kur pirkti“ ir „nuo …“)
+function dropMinor(list) {
+  const um = { kg: 0, l: 0 };
+  for (const h of list) if (h.uv && h.uv.unit in um) um[h.uv.unit]++;
+  const minor = um.kg && um.l && Math.min(um.kg, um.l) / (um.kg + um.l) <= UNIT_MINOR ? (um.kg < um.l ? 'kg' : 'l') : null;
+  return minor ? list.filter(h => !(h.uv && h.uv.unit === minor)) : list;
+}
 const uClass = unit => unit === 'vnt' ? 'vnt' : 'm';
 // „2 x 500 g“, „2 × 400 g“, „2 dėž. × 100 g“ (kaina už kelias pakuotes)
 const QTY_RE = /(?:(\d+)\s*(?:\p{L}{2,4}\.\s*)?[x×]\s*)?(\d+(?:,\d+)?)\s*(kg|g|ml|l|vnt)\.?(?![\p{L}\d])/giu;
@@ -1027,6 +1043,9 @@ function dispName(n) {
   return low.charAt(0).toLocaleUpperCase('lt') + low.slice(1);
 }
 const fmtDate = iso => iso.slice(5).replace('-', '.');
+// „🎄 Kalėdinis leidinys“: prekė iš proginio leidinio (export_static „ev“; „e“ – apskaičiuota nuolaida) – šventinė kaina
+const eventTag = it => { const t = el('span', 'event', (/kalėd/i.test(it.ev) ? '🎄 ' : '') + it.ev);
+  t.title = it.d ? 'Akcija proginiame leidinyje' : 'Šventinio leidinio kaina (ne akcija)'; return t; };
 const WDAY = ['sekmadienio', 'pirmadienio', 'antradienio', 'trečiadienio', 'ketvirtadienio', 'penktadienio', 'šeštadienio'];
 // „nuo rytojaus (11.22)“, „nuo pirmadienio (11.23)“; toliau nei savaitė – tik data
 const fromDay = iso => { const n = daysLeft(iso);
@@ -1073,7 +1092,8 @@ function card(r, slot = false) {
 
   const top = el('div', 'top');
   const s = el('span', 'store'); s.append(el('span', 'dot'), CHAINS[r.c] || r.c);
-  top.append(s, el('span', 'pg-ref', 'leidinys, p. ' + r.pg));
+  top.append(s, el('span', 'pg-ref', (r.ev ? 'p. ' : 'leidinys, p. ') + r.pg));   // proginiam žyma jau sako, koks leidinys
+  if (r.ev) top.append(eventTag(r));
   if (r.f && r.f > t) top.append(el('span', 'when', 'nuo ' + fmtDate(r.f)));
   else if (r.t) {
     const d = daysLeft(r.t);
@@ -1455,7 +1475,7 @@ const akcijos = n => `${n} ${plural(n, 'akcija', 'akcijos', 'akcijų')}`;
 // jei tokių nėra – iš visų. d – tik tą dieną galiojančios
 // Lyginama už kg / l (arba už vnt., jei tokių daugiau – kiaušiniai), kaip „Kur pirkti“; be kainos už vienetą – pakuotės kaina
 function cheapest(core, d) {
-  const ok = core.filter(h => h.p != null && (!d || validOn(h, d))), exact = ok.filter(h => !h.y), pool = exact.length ? exact : ok;
+  const ok = core.filter(h => h.p != null && (!d || validOn(h, d))), exact = ok.filter(h => !h.y), pool = dropMinor(exact.length ? exact : ok);
   const cnt = { m: 0, vnt: 0 };
   for (const h of pool) if (h.uv) cnt[uClass(h.uv.unit)]++;
   const cls = cnt.m >= cnt.vnt ? 'm' : 'vnt', byU = pool.filter(h => h.uv && uClass(h.uv.unit) === cls);
@@ -1586,6 +1606,7 @@ function watchRow(it, isNew, w) {
   sub.append(el('span', null, [CHAINS[it.c] || it.c, it.q, condOf(it)].filter(Boolean).join(' · ')));
   if (isNew) sub.append(el('span', 'new', 'nauja'));
   const wt = whenTag(it); if (wt) sub.append(wt);
+  if (it.ev) sub.append(eventTag(it));
   info.append(el('div', 'wn', dispName(it.n)), sub);
   const pr = el('div', 'wpr');
   pr.append(el('span', 'wp', it.p != null ? priceTxt(it) : (it.d ? '' : '—')));
@@ -1786,10 +1807,7 @@ function recommend() {
     }
     // kg ir l lyginami kartu (ledai, majonezas, grietinėlė nurodomi ir g, ir ml), bet kai vienas vienetas aiškiai vyrauja
     // (duona – 35 kg ir 2 l, arbata – 6 kg ir 2 l), mažumos prekės greičiausiai kita prekė („Duonos gira“): į palyginimą neįtraukiamos
-    const um = { kg: 0, l: 0 };
-    for (const h of rel0) if (h.uv && h.uv.unit in um) um[h.uv.unit]++;
-    const minor = um.kg && um.l && Math.min(um.kg, um.l) / (um.kg + um.l) <= UNIT_MINOR ? (um.kg < um.l ? 'kg' : 'l') : null;
-    const rel = minor ? rel0.filter(h => !(h.uv && h.uv.unit === minor)) : rel0;
+    const rel = dropMinor(rel0);
     // lyginimo vienetas: dažniausias tarp prekių (kg / l arba vnt.); kitokio vieneto prekės – „nepalyginama"
     const cnt = { m: 0, vnt: 0 };
     for (const h of rel) if (h.uv) cnt[uClass(h.uv.unit)]++;
@@ -2099,13 +2117,55 @@ function parseShare(s) {
   return codes.length || texts.length ? { codes, texts } : null;
 }
 // paleidžiama įkėlus duomenis: atidaryta pasidalinto sąrašo nuoroda
-function checkShareIn() {
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const STANDALONE = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+let SHARE_GATE = null;   // iPhone naršyklėje: importuojama tik pasirinkus „tęsti čia“
+async function checkShareIn() {
   const sh = parseShare(SHARE_IN);
-  if (sh) openImport(sh);
+  if (!sh || (SHARE_GATE && !(await SHARE_GATE))) return;
+  openImport(sh);
+}
+/* iPhone: nuoroda atsidarė Safari ar Messenger'io naršyklėje, ne pradžios ekrano programėlėje (jų atmintis atskira).
+   Rodoma prieš prisijungimą: nukopijuoti nuorodą programėlei arba tęsti čia. */
+function showShareGate() {
+  const sh = parseShare(SHARE_IN);
+  if (!sh || !IOS || STANDALONE) return;
+  let done;
+  SHARE_GATE = new Promise(ok => { done = ok; });
+  const n = sh.codes.length + sh.texts.length, url = location.origin + location.pathname + SHARE_IN;
+  const dlg = el('dialog', 'sheet'); dlg.id = 'shareGate'; dlg.setAttribute('aria-labelledby', 'sgTitle'); document.body.append(dlg);
+  const f = el('form'); f.method = 'dialog';
+  const h = el('h2', null, `Gautas pirkinių sąrašas (${n} ${prekes(n)})`); h.id = 'sgTitle';
+  const steps = el('ol', 'sg-steps');
+  for (const t of ['Nukopijuokite nuorodą', 'Atidarykite „Akcijos“ programėlę pradžios ekrane', 'Pirkiniuose spauskite „Įkelti iš nuorodos“'])
+    steps.append(el('li', null, t));
+  const cp = el('button', 'primary', 'Kopijuoti nuorodą'); cp.type = 'button';
+  cp.onclick = async () => {
+    try { await navigator.clipboard.writeText(url); cp.textContent = '✓ Nukopijuota – atidarykite programėlę'; cp.classList.add('ok'); }
+    catch { cp.textContent = 'Nepavyko – palaikykite nuorodą ir „Kopijuoti“'; }
+  };
+  const here = el('button', 'secondary', 'Neturiu programėlės – tęsti čia'); here.type = 'button';
+  here.onclick = () => { dlg.close(); done(true); };
+  f.append(el('div', 'grab'), h, el('p', 'tb-sub', 'Turite „Akcijos“ programėlę pradžios ekrane? Ši naršyklė su ja sąrašo nesidalija:'),
+    steps, cp, here);
+  dlg.addEventListener('cancel', e => e.preventDefault());   // neuždaroma netyčia
+  dlg.replaceChildren(f);
+  dlg.showModal();
 }
 /* „Įkelti iš nuorodos“: iPhone pradžios ekrano programėlė nuorodų neperima (jos atsidaro Safari),
    todėl nuorodą galima įklijuoti. Su url – parodoma nuoroda nukopijuoti (kai iškarpinė nepasiekiama). */
 function openPasteShare(url) {
+  const out = typeof url === 'string';
+  if (!out && IOS && navigator.clipboard && navigator.clipboard.readText) {   // readText – iškart paspaudus, kol galioja gestas
+    navigator.clipboard.readText().then(t => {
+      const sh = parseShare((t || '').trim());
+      if (sh) openImport(sh); else pasteDlg(null, t ? 'Iškarpinėje ne pirkinių sąrašo nuoroda. Įklijuokite ją čia.' : null);
+    }, () => pasteDlg(null));
+    return;
+  }
+  pasteDlg(url);
+}
+function pasteDlg(url, note) {
   const out = typeof url === 'string';
   let dlg = $('pasteShare');
   if (!dlg) { dlg = el('dialog', 'sheet'); dlg.id = 'pasteShare'; dlg.setAttribute('aria-labelledby', 'psTitle'); document.body.append(dlg);
@@ -2113,9 +2173,11 @@ function openPasteShare(url) {
   const f = el('form'); f.method = 'dialog';
   const h = el('h2', null, out ? 'Pirkinių sąrašo nuoroda' : 'Įkelti iš nuorodos'); h.id = 'psTitle';
   const inp = el('input', 'ps-in'); inp.type = 'text'; inp.autocomplete = 'off'; inp.setAttribute('aria-label', 'Nuoroda');
-  const msg = el('p', 'tb-sub', out ? 'Nukopijuokite nuorodą ir nusiųskite ją.' : 'Įklijuokite gautą pirkinių sąrašo nuorodą.');
+  const msg = el('p', 'tb-sub' + (note ? ' err' : ''), out ? 'Nukopijuokite nuorodą ir nusiųskite ją.' : note || 'Įklijuokite gautą pirkinių sąrašo nuorodą.');
   const go = el('button', 'primary', out ? 'Uždaryti' : 'Įkelti'); go.type = 'submit';
-  f.append(el('div', 'grab'), h, msg, inp, go);
+  f.append(el('div', 'grab'), h, msg, inp);
+  if (!out && IOS) f.append(el('p', 'ps-tip', 'Patarimas: Messenger’yje ilgai palaikykite nuorodą → „Kopijuoti“ – tada ji neatsidarys naršyklėje.'));
+  f.append(go);
   if (out) { inp.value = url; inp.readOnly = true; inp.onfocus = () => inp.select(); }
   else {
     const no = el('button', 'secondary', 'Atšaukti'); no.type = 'button'; no.onclick = () => dlg.close();
@@ -2288,7 +2350,9 @@ function recCard() {
     }
     cb.append(recSeg('Siūlyti antrą parduotuvę, jei sutaupoma bent', [[1, '1 €'], [2, '2 €'], [5, '5 €']], REC_MIN,
       v => { REC_MIN = v; kv.put('recMin', v); renderWatch(); }));
-    cb.append(el('div', 'rec-note', 'Kainos lyginamos už kg / l tokiam pat kiekiui; prekės be akcijos neįskaičiuotos.'));
+    const withEvent = terms.some(t => Object.values(t.per).some(x => x.it.ev));   // ir šventinio leidinio kainos
+    cb.append(el('div', 'rec-note', 'Kainos lyginamos už kg / l tokiam pat kiekiui; prekės be akcijos neįskaičiuotos.'
+      + (withEvent ? ' Įskaičiuotos ir šventinių (pvz. Kalėdų) leidinių kainos – jos ne visada akcijos.' : '')));
     box.append(cb);
   }
 
@@ -2483,6 +2547,7 @@ for (const t of document.querySelectorAll('.tab')) t.onclick = () => { if (t.dat
     if (last && last in TITLES) state.view = last;
   }
   try { history.replaceState({ view: state.view }, ''); } catch {}
+  showShareGate();
   setView(state.view, false);
 })();
 
