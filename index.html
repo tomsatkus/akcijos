@@ -2,6 +2,9 @@
 <html lang="lt">
 <head>
 <meta charset="utf-8">
+<!-- Saugumas: programėlė jungiasi tik prie savo svetainės (data.json, parduotuves.json); kitų svetainių
+     skriptai, paveikslėliai ir užklausos blokuojami. Nuorodos į leidinius ir Google Maps atidaromos naujame lange. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Akcijos</title>
 <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
@@ -605,7 +608,7 @@ const state = {
   page: Math.max(1, parseInt(params.get('page')) || 1),
   view: { pirkiniai: 'basket', krepselis: 'basket', mano: 'watch', stebimos: 'watch' }[params.get('view')] || 'list',   // senos nuorodos irgi
 };
-let timer, lastCounts = null;
+let timer;
 const PER_PAGE = 24;   // dalijasi iš 2 ir 3: lygios eilės telefone ir kompiuteryje
 
 /* ---------- Paieška (tokia pati kaip common.py / server.py) ----------
@@ -629,7 +632,6 @@ function stem(t) {
 /* ---------- Prisijungimas: data.json užšifruotas (web/export_static.py, web/vartotojai.py) ----------
    Vartotojo slaptažodis -> PBKDF2 raktas -> atrakina duomenų raktą -> AES-GCM -> gzip -> JSON.
    Raktas įsimenamas IndexedDB kaip neeksportuojamas CryptoKey: kitą kartą slaptažodžio nereikia. */
-let ENCRYPTED = false;
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 async function userHash(name) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('akcijos:' + name.trim().toLowerCase().normalize('NFC')));
@@ -663,7 +665,7 @@ const kv = {
     try { const db = await kv.db(); await new Promise(ok => {
       const t = db.transaction('kv', 'readwrite'); v === undefined ? t.objectStore('kv').delete(k) : t.objectStore('kv').put(v, k);
       t.oncomplete = ok; t.onerror = ok; });
-    } catch {}
+    } catch (e) { console.warn('Nepavyko įrašyti į telefono atmintį (IndexedDB):', k, e); }
   },
 };
 const LOGIN_DAYS = 90;
@@ -697,7 +699,6 @@ function hideLogin() {
   $('login').hidden = true;
 }
 async function unlock(env) {
-  ENCRYPTED = true;
   $('logoutBtn').hidden = false;
   if (!env.users || !env.users.length) {
     showLogin('Prieiga dar nesukurta. Kompiuteryje paleiskite: python web\\vartotojai.py prideti VARDAS', true);
@@ -802,7 +803,6 @@ async function loadData() {
   const raw = await res.json();
   DATA = raw.items ? raw : await unlock(raw);   // vietinis serveris – atviras sąrašas, svetainė – užšifruotas
   for (const it of DATA.items) { it.w = it.s.split(' '); it.st = it.w.map(stem); it.e = effDisc(it); it.uv = unitValue(it); }
-  const g = DATA.generated || '';
   netStatus();
 }
 
@@ -1420,7 +1420,7 @@ function tripRows(items) {
 
 // krepšelio eilutė: didelis žymėjimas kairėje (lengva pataikyti nykščiu), pavadinimas atidaro leidinį, × – pašalinti
 function basketRow(b, showStore = false) {
-  const it = b.it, t = today();
+  const it = b.it;
   const r = el('div', 'brow' + (b.done ? ' done' : ''));
   tint(r, it.c);
   const ch = el('button', 'check'); ch.type = 'button';
@@ -1776,7 +1776,6 @@ function markWatchSeen() {
 
 /* ---------- Kur apsipirkti: tinklas, kuriame daugiausia stebimų prekių su akcija ----------
    Žinomos tik akcijų kainos (ne įprastos), todėl lyginama, kiek stebimų prekių tinkle turi akciją, ir kiek sutaupoma. */
-const byPrice = (a, b) => (a.p ?? Infinity) - (b.p ?? Infinity);
 const savingOf = it => (it && it.o > it.p ? it.o - it.p : 0);
 /* „Kur ir kada pirkti": kiekvienai stebimai prekei lyginama kaina už kg / l (jei jos nėra – pakuotės kaina)
    su pigiausia tarp tinklų tą dieną, kai ketinama apsipirkti. Tinklo balas – kiek arti pigiausių jo kainos
@@ -1882,7 +1881,7 @@ async function loadStores() {
   try {
     const r = await fetch('parduotuves.json', { cache: 'no-cache' });
     if (r.ok) STORES = ((await r.json()).stores || []).filter(st => !/uždaryt|closed/i.test(st.n));   // uždarytos nerodomos
-  } catch {}
+  } catch (e) { console.warn('Parduotuvių adresų nepavyko įkelti – rekomendacija bus be adresų:', e); }
   LOC = (await kv.get('loc')) || null;
 }
 function locate() {
@@ -2437,7 +2436,7 @@ if (matchMedia('(pointer: coarse)').matches) {
 
 const TITLES = { list: 'Akcijos', watch: 'Mano prekės', basket: 'Pirkiniai' };
 async function setView(v, push = true) {
-  if (push && v !== state.view) { try { history.pushState({ view: v }, ''); } catch {} }   // „Atgal“ grąžina į ankstesnę skiltį
+  if (push && v !== state.view) { try { history.pushState({ view: v }, ''); } catch { /* history gali būti neprieinama – skiltis vis tiek perjungiama */ } }   // „Atgal“ grąžina į ankstesnę skiltį
   state.view = v;
   if (v !== 'watch') HIDE_SUGG = null;   // „Slėpti ir kitas…“ pasiūlymas – tik iš karto po paslėpimo
   kv.put('view', v);   // kitą kartą atsidarys ta pati skiltis
@@ -2474,7 +2473,7 @@ function syncUrl() {
   if (state.page > 1) p.set('page', state.page);
   if (state.view !== 'list') p.set('view', state.view === 'basket' ? 'pirkiniai' : 'mano');
   const qs = p.toString();
-  try { history.replaceState({ ...(history.state || {}), view: state.view }, '', qs ? '?' + qs : location.pathname); } catch {}
+  try { history.replaceState({ ...(history.state || {}), view: state.view }, '', qs ? '?' + qs : location.pathname); } catch { /* adresas neatnaujinamas – programėlė veikia ir be to */ }
 }
 
 async function load(more = false) {
@@ -2505,7 +2504,6 @@ async function load(more = false) {
   const data = browse();
   state.page = data.page;
   syncUrl();
-  lastCounts = data.counts;
   renderChains(data.counts);
   $('sheetDone').textContent = data.total ? `Rodyti ${data.total} ${prekes(data.total)}` : 'Uždaryti';
   if (!data.total) {
@@ -2574,7 +2572,7 @@ for (const t of document.querySelectorAll('.tab')) t.onclick = () => { if (t.dat
     const last = await kv.get('view');
     if (last && last in TITLES) state.view = last;
   }
-  try { history.replaceState({ view: state.view }, ''); } catch {}
+  try { history.replaceState({ view: state.view }, ''); } catch { /* žr. syncUrl */ }
   showShareGate();
   setView(state.view, false);
 })();
