@@ -947,11 +947,17 @@ function modAfter(it, j) {
 }
 
 // ta pati paieška naudojama sąraše ir stebimose prekėse
+// santrumpa didžiosiomis („LED", „USB", „TV"): tik toks pat žodis ar modelio kodo dalis („BBHL2LED"),
+// ne žodžio pradžia – kitaip „LED" rastų „ledai". Telefone pirmoji raidė didžioji („Led") – įprasta paieška
+const acronyms = text => text.normalize('NFKD').replace(/\p{M}/gu, '').replace(/[^A-Za-z0-9]+/g, ' ').trim()
+  .split(' ').filter(Boolean).map(t => /^[A-Z]{2,4}$/.test(t));
 function matchItems(items, text) {
-  const raw = normalize(text).split(' ').filter(Boolean), toks = raw.map(stem);
+  const raw = normalize(text).split(' ').filter(Boolean), toks = raw.map(stem), acr = acronyms(text);
   if (!toks.length) { for (const it of items) it.x = it.rel = 0; return items; }
   // žodis tinka, jei jo kamienas sutampa („sūrio" ~ „sūris") arba jis prasideda įvestu tekstu („šokol")
-  items = items.filter(it => raw.every((r, i) => it.w.some((w, j) => w.startsWith(r) || it.st[j] === toks[i])));
+  items = items.filter(it => raw.every((r, i) => it.w.some((w, j) => acr[i]
+    ? w === r || (/\d/.test(w) && w.includes(r))
+    : w.startsWith(r) || it.st[j] === toks[i])));
   // pirmiau prekės, kurių žodžiai atitinka tiksliai („mėsa" ~ „mėsos"), po jų tik pagal pradžią („mėsainis")
   for (const it of items) {
     it.x = toks.every(s => it.st.includes(s)) ? 0 : 1;
@@ -1143,7 +1149,9 @@ function card(r, slot = false) {
   if (k) { const cr = el('div', 'cond-row'); cr.append(el('span', 'cond', k)); c.append(cr); }   // sąlyga – per visą plotį
 
   // r – data.json žyma „reikia patikrinti“ (needs_review); paieškos ryšys laikomas atskirai – rel
-  if (r.r) c.append(el('div', 'warn', '⚠ Kaina gali būti nuskaityta neteisingai – patikrinkite leidinyje'));
+  // r – export_static.review_flag: [nurodyta, pagal kainas] – pačio leidinio klaida; 1 – gal neteisingai nuskaityta
+  if (Array.isArray(r.r)) c.append(el('div', 'warn', `⚠ Leidinyje nurodyta −${r.r[0]} %, o pagal kainas nuolaida −${r.r[1]} %. Kainą pasitikrinkite parduotuvėje`));
+  else if (r.r) c.append(el('div', 'warn', '⚠ Kaina gali būti nuskaityta neteisingai – patikrinkite leidinyje'));
   return c;
 }
 
