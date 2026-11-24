@@ -112,12 +112,16 @@
   /* ---------- Prisijungimas ---------- */
   [hidden] { display:none !important; }
   body.locked header, body.locked main, body.locked .brand { display:none; }
-  .login { min-height:100dvh; display:grid; place-items:center; padding:24px 20px calc(env(safe-area-inset-bottom) + 24px); }
+  .login { min-height:100dvh; display:grid; place-items:center; align-content:center; padding:24px 20px calc(env(safe-area-inset-bottom) + 24px); }
   .login-card { width:100%; max-width:360px; display:flex; flex-direction:column; align-items:center; text-align:center; }
   .login-card .logo { width:56px; height:56px; border-radius:16px; font-size:1.625rem; margin-bottom:14px; }
   .login-card h2 { margin:0 0 6px; font-size:1.5rem; letter-spacing:-.02em; }
   .login-card p { margin:0 0 22px; color:var(--muted); font-size:0.875rem; }
-  #loginFields { width:100%; display:flex; flex-direction:column; gap:10px; }
+  #loginFields, #inviteFields { width:100%; display:flex; flex-direction:column; gap:10px; }
+  #loginFields[hidden], #inviteFields[hidden] { display:none; }
+  .invite-card { margin-top:-8px; }
+  #inviteFields input { width:100%; height:50px; padding:0 16px; font-size:1rem; border:1px solid var(--line); border-radius:14px;
+    background:var(--surface); color:var(--text); }
   #loginFields input { width:100%; height:50px; padding:0 16px; font-size:1.0625rem; border:1px solid var(--line); border-radius:14px;
                        background:var(--surface); color:var(--text); box-shadow:var(--shadow); -webkit-appearance:none; appearance:none; }
   #loginFields input:focus { outline:none; border-color:var(--muted); box-shadow:0 0 0 4px color-mix(in srgb, var(--text) 12%, transparent); }
@@ -569,11 +573,19 @@
     <h2>Akcijos</h2>
     <p id="loginMsg"></p>
     <div id="loginFields">
-      <input id="lname" name="username" aria-label="Vardas" autocomplete="username" placeholder="Vardas" required autocapitalize="words" spellcheck="false">
+      <input id="lname" name="username" autocomplete="username" hidden tabindex="-1" aria-hidden="true">
       <input id="lpass" name="password" aria-label="Slaptažodis" type="password" autocomplete="current-password" placeholder="Slaptažodis" required>
       <button class="primary" id="lbtn">Prisijungti</button>
       <div id="lwait" class="lwait" hidden><i></i><span>Slaptažodis tikrinamas saugiai – telefone tai gali užtrukti iki 10 s.</span></div>
       <div id="lerr" class="lerr" aria-live="polite"></div>
+    </div>
+  </form>
+  <form id="inviteForm" class="login-card invite-card" autocomplete="off">
+    <div id="inviteFields" hidden>
+      <button class="primary" id="ipaste" type="button">Įklijuoti kvietimo nuorodą</button>
+      <input id="iin" aria-label="Kvietimo nuoroda" placeholder="arba įklijuokite ją čia" autocapitalize="off" spellcheck="false">
+      <button class="secondary" id="igo">Naudoti nuorodą</button>
+      <div id="ierr" class="lerr" aria-live="polite"></div>
     </div>
   </form>
 </section>
@@ -594,6 +606,16 @@
 
 <script>
 const $ = id => document.getElementById(id);
+// Saugumas: svetimame puslapyje (rėmelyje) programėlė neveikia – kad prisijungimo langu nebūtų galima apgauti
+// (GitHub Pages neleidžia nustatyti X-Frame-Options / frame-ancestors antraščių)
+if ((() => { try { return window.top !== window.self; } catch { return true; } })()) {
+  const a = document.createElement('a'); a.href = location.href; a.target = '_blank'; a.rel = 'noopener';
+  a.textContent = 'Atidaryti „Akcijos“ atskirai';
+  const p = document.createElement('p'); p.style.cssText = 'font:16px system-ui;padding:24px;text-align:center';
+  p.append('Šis puslapis neatidaromas kitos svetainės viduje. ', a);
+  document.body.replaceChildren(p);
+  throw new Error('Akcijos neatidaromos rėmelyje');
+}
 const q = $('q'), statusEl = $('status'), resultsEl = $('results'), pagerEl = $('pager');
 const CHAINS = { maxima:'Maxima', iki:'IKI', lidl:'Lidl', rimi:'Rimi', norfa:'Norfa' };
 
@@ -630,24 +652,51 @@ function stem(t) {
 /* @paieska:pabaiga */
 
 /* ---------- Prisijungimas: data.json užšifruotas (web/export_static.py, web/vartotojai.py) ----------
-   Vartotojo slaptažodis -> PBKDF2 raktas -> atrakina duomenų raktą -> AES-GCM -> gzip -> JSON.
-   Raktas įsimenamas IndexedDB kaip neeksportuojamas CryptoKey: kitą kartą slaptažodžio nereikia. */
+   Raktas sudaromas iš dviejų dalių: kvietimo rakto (128 bitų, ateina kvietimo nuoroda #k=…, įsimenamas telefone)
+   ir slaptažodžio (PBKDF2). Galutinis raktas = HKDF(kvietimo raktas, druska = PBKDF2(slaptažodis)) -> atrakina
+   duomenų raktą -> AES-GCM -> gzip -> JSON. Kvietimo rakto viešame data.json nėra, todėl slaptažodžio spėlioti
+   turint tik failą neįmanoma. Abu raktai telefone laikomi kaip neeksportuojami CryptoKey: jų nukopijuoti negalima. */
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-async function userHash(name) {
-  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('akcijos:' + name.trim().toLowerCase().normalize('NFC')));
-  return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+const b64u = s => b64(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4));
+const utf8 = s => new TextEncoder().encode(s);
+const KEY_INFO = utf8('akcijos-v2-raktas'), ID_INFO = utf8('akcijos-v2-id');   // tokie patys web/vartotojai.py
+// kvietimo nuoroda: #k=<raktas>&n=<vardas>. Iškart pašalinama iš adreso, kad neliktų istorijoje ar ekrano nuotraukose
+const INVITE_IN = (() => {
+  const p = new URLSearchParams(location.hash.slice(1)), k = p.get('k');
+  return k ? { k, n: (p.get('n') || '').slice(0, 40), url: location.href } : null;
+})();
+if (INVITE_IN) { try { history.replaceState(null, '', location.pathname + location.search); } catch { /* nebūtina */ } }
+// kvietimo nuoroda atidaryta jau atvertame lange (keičiasi tik # dalis) – perkraunama, kad būtų perskaityta
+addEventListener('hashchange', () => { if (/[#&]k=/.test(location.hash)) location.reload(); });
+function parseInvite(text) {
+  const i = (text || '').indexOf('#');
+  if (i < 0) return null;
+  const p = new URLSearchParams(text.slice(i + 1)), k = p.get('k');
+  return k ? { k, n: (p.get('n') || '').slice(0, 40) } : null;
 }
-async function deriveKek(password, salt, iterations) {
-  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password.normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, base,
+async function saveInvite(inv) {
+  let raw;
+  try { raw = b64u(inv.k); } catch { raw = null; }
+  if (!raw || raw.length !== 16) throw new Error('netinkamas kvietimas');
+  const key = await crypto.subtle.importKey('raw', raw, 'HKDF', false, ['deriveKey', 'deriveBits']);
+  const idb = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: ID_INFO }, key, 64);
+  const id = [...new Uint8Array(idb)].map(b => b.toString(16).padStart(2, '0')).join('');
+  const saved = { key, id, name: inv.n || '', at: Date.now() };
+  await kv.put('invite', saved);
+  return saved;
+}
+async function userKey(password, u, inv) {
+  const base = await crypto.subtle.importKey('raw', utf8(password.normalize('NFC')), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: b64(u.salt), iterations: u.it }, base, 256);
+  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: bits, info: KEY_INFO }, inv.key,
     { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
 }
-async function openEnvelope(env, kek, h) {
-  const u = env.users.find(x => x.h === h);
+async function openEnvelope(env, key, id) {
+  const u = env.users.find(x => x.id === id);
   if (!u) throw new Error('vartotojo nėra');
-  const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(u.iv) }, kek, b64(u.wk));
-  const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
-  const gz = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(env.iv) }, key, b64(env.ct));
+  const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(u.iv) }, key, b64(u.wk));
+  const dk = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+  const gz = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(env.iv) }, dk, b64(env.ct));
   return JSON.parse(await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
 }
 const kv = {
@@ -669,7 +718,7 @@ const kv = {
   },
 };
 const LOGIN_DAYS = 90;
-/* paskyros mygtukas antraštėje (vardo raidė): „Prisijungta kaip …“ ir „Atsijungti“ */
+/* paskyros mygtukas antraštėje (vardo raidė): „Prisijungta kaip …“, „Atsijungti“ ir „Pamiršti šį telefoną“ */
 function showAcct(name) {
   const b = $('acct'); b.hidden = false;
   b.textContent = name ? name.trim()[0].toUpperCase() : '👤';
@@ -680,19 +729,29 @@ function showAcct(name) {
                 dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); }); }
     const f = el('form'); f.method = 'dialog';
     const h = el('h2', null, name ? `Prisijungta kaip ${name}` : 'Prisijungta'); h.id = 'acctTitle';
-    const out = el('button', 'primary', 'Atsijungti'); out.type = 'button';
+    const out = el('button', 'primary', 'Atsijungti'); out.type = 'button'; out.id = 'acctOut';
     out.onclick = async () => { await kv.put('login'); location.reload(); };
+    // ištrinamas ir kvietimas: be naujos kvietimo nuorodos šis telefonas nebeprisijungs (parduodant, atiduodant)
+    const forget = el('button', 'secondary', 'Pamiršti šį telefoną'); forget.type = 'button'; forget.id = 'acctForget';
+    forget.onclick = async () => {
+      if (!forget.dataset.sure) { forget.dataset.sure = '1'; forget.textContent = 'Tikrai? Reikės naujos kvietimo nuorodos'; return; }
+      await kv.put('login'); await kv.put('invite'); location.reload();
+    };
     const no = el('button', 'secondary', 'Uždaryti'); no.value = 'close';
-    f.append(el('div', 'grab'), h, el('p', 'acct-p', `Atsijunkite, jei telefonu naudojasi ir kiti. Prisijungimas savaime baigiasi po ${LOGIN_DAYS} d.`), out, no);
+    f.append(el('div', 'grab'), h, el('p', 'acct-p', `Atsijunkite, jei telefonu naudojasi ir kiti – kitą kartą reikės slaptažodžio. Prisijungimas savaime baigiasi po ${LOGIN_DAYS} d.`),
+      out, forget, no);
     dlg.replaceChildren(f); dlg.showModal();
   };
 }
-function showLogin(msg, closed = false) {
+// mode: 'pass' – slaptažodis; 'invite' – reikia kvietimo nuorodos; 'closed' – prieiga nesukurta
+function showLogin(msg, mode = 'pass', name = '') {
   document.body.classList.add('locked');
   $('login').hidden = false;
   $('loginMsg').textContent = msg || 'Akcijų sąrašas prieinamas tik pakviestiems naudotojams.';
-  $('loginFields').hidden = closed;
-  if (!closed) setTimeout(() => ($('lname').value ? $('lpass') : $('lname')).focus(), 50);
+  $('loginFields').hidden = mode !== 'pass';
+  $('inviteFields').hidden = mode !== 'invite';
+  $('lname').value = name;   // slaptažodžių tvarkyklei (laukas nerodomas)
+  if (mode === 'pass') setTimeout(() => $('lpass').focus(), 50);
 }
 function hideLogin() {
   document.body.classList.remove('locked');
@@ -700,25 +759,54 @@ function hideLogin() {
 }
 async function unlock(env) {
   $('logoutBtn').hidden = false;
-  if (!env.users || !env.users.length) {
-    showLogin('Prieiga dar nesukurta. Kompiuteryje paleiskite: python web\\vartotojai.py prideti VARDAS', true);
+  if (env.v !== 2 || !env.users || !env.users.length) {
+    showLogin('Prieiga dar nesukurta. Kompiuteryje paleiskite: python web\\vartotojai.py prideti VARDAS', 'closed');
     return new Promise(() => {});
   }
+  let inv = await kv.get('invite');
+  if (INVITE_IN) {
+    if (IOS && !STANDALONE) await inviteGate();   // iPhone naršyklėje: pasiūloma perkelti į programėlę
+    try { inv = await saveInvite(INVITE_IN); await kv.put('login'); }
+    catch { return askInvite(env, 'Kvietimo nuoroda sugadinta – nukopijuokite ją visą dar kartą.'); }
+  }
+  if (!inv) return askInvite(env);
+  if (!env.users.some(u => u.id === inv.id))
+    return askInvite(env, 'Šis kvietimas nebegalioja. Paprašykite naujos kvietimo nuorodos.');
   const saved = await kv.get('login');
-  if (saved && saved.at && Date.now() - saved.at > LOGIN_DAYS * 864e5) {   // bendrai naudojamame telefone prieiga nesitęsia be galo
-    await kv.put('login');
-    return askLogin(env, `Prisijungimas galiojo ${LOGIN_DAYS} d. – prisijunkite iš naujo.`);
+  if (saved && saved.id === inv.id) {
+    if (Date.now() - saved.at > LOGIN_DAYS * 864e5) {   // bendrai naudojamame telefone prieiga nesitęsia be galo
+      await kv.put('login');
+      return askLogin(env, inv, `Prisijungimas galiojo ${LOGIN_DAYS} d. – įveskite slaptažodį.`);
+    }
+    showAcct(inv.name);
+    try { return await openEnvelope(env, saved.key, saved.id); }
+    catch { await kv.put('login'); return askLogin(env, inv, 'Prieiga pasikeitė – įveskite slaptažodį iš naujo.'); }
   }
-  if (saved) {
-    if (!saved.at) kv.put('login', { ...saved, at: Date.now() });   // seniau išsaugotas – galiojimas skaičiuojamas nuo dabar
-    showAcct(saved.name);
-    try { return await openEnvelope(env, saved.kek, saved.h); }
-    catch { await kv.put('login'); return askLogin(env, 'Prieiga pasikeitė – prisijunkite iš naujo.'); }
-  }
-  return askLogin(env);
+  return askLogin(env, inv);
 }
-function askLogin(env, msg) {
-  showLogin(msg);
+// nėra kvietimo: įklijuoti kvietimo nuorodą (iPhone programėlė pradžios ekrane nuorodų neperima)
+function askInvite(env, msg) {
+  showLogin(msg || 'Šiam telefonui reikia kvietimo nuorodos. Ją gavote žinute – atidarykite ją arba įklijuokite čia.', 'invite');
+  return new Promise(resolve => {
+    const use = async text => {
+      const inv = parseInvite((text || '').trim());
+      if (!inv) { $('ierr').textContent = 'Tai ne kvietimo nuoroda (joje turi būti „#k=“).'; return; }
+      try {
+        const saved = await saveInvite(inv);
+        if (!env.users.some(u => u.id === saved.id)) { $('ierr').textContent = 'Šis kvietimas nebegalioja. Paprašykite naujo.'; return; }
+        $('ierr').textContent = ''; $('iin').value = '';
+        resolve(askLogin(env, saved));
+      } catch { $('ierr').textContent = 'Kvietimo nuoroda sugadinta – nukopijuokite ją visą.'; }
+    };
+    $('ipaste').onclick = async () => {
+      try { const t = await navigator.clipboard.readText(); if (t) { $('iin').value = t; return use(t); } } catch { /* leidimo nėra */ }
+      $('ierr').textContent = 'Nepavyko paimti iš iškarpinės – įklijuokite nuorodą į laukelį.'; $('iin').focus();
+    };
+    $('inviteForm').onsubmit = e => { e.preventDefault(); use($('iin').value); };
+  });
+}
+function askLogin(env, inv, msg) {
+  showLogin(msg || (inv.name ? `Prisijungiate kaip ${inv.name}. Įveskite slaptažodį.` : 'Įveskite slaptažodį.'), 'pass', inv.name);
   return new Promise(resolve => {
     $('loginForm').onsubmit = async e => {
       e.preventDefault();
@@ -726,22 +814,44 @@ function askLogin(env, msg) {
       btn.disabled = true; btn.textContent = 'Tikrinama…'; btn.classList.add('busy'); $('lerr').textContent = '';
       const wait = setTimeout(() => { $('lwait').hidden = false; }, 800);   // ilgiau trunkant – paaiškinimas ir eigos juosta
       try {
-        const h = await userHash($('lname').value);
-        const u = env.users.find(x => x.h === h);
-        if (!u) throw new Error();
-        const kek = await deriveKek($('lpass').value, b64(u.salt), u.it);
-        const data = await openEnvelope(env, kek, h);
-        await kv.put('login', { h, kek, name: $('lname').value.trim(), at: Date.now() });
-        showAcct($('lname').value.trim());
+        const u = env.users.find(x => x.id === inv.id);
+        const key = await userKey($('lpass').value, u, inv);
+        const data = await openEnvelope(env, key, inv.id);
+        await kv.put('login', { id: inv.id, key, at: Date.now() });
+        showAcct(inv.name);
         $('lpass').value = '';
         hideLogin();
         resolve(data);
       } catch {
-        $('lerr').textContent = 'Neteisingas vardas arba slaptažodis.';
+        $('lerr').textContent = 'Neteisingas slaptažodis.';
       }
       clearTimeout(wait); $('lwait').hidden = true;
       btn.disabled = false; btn.textContent = 'Prisijungti'; btn.classList.remove('busy');
     };
+  });
+}
+/* iPhone: kvietimo nuoroda atsidarė Safari, o programėlė pradžios ekrane turi atskirą atmintį – pasiūloma nuorodą
+   nukopijuoti ir įklijuoti programėlėje, arba tęsti čia (jei programėlės nėra) */
+function inviteGate() {
+  return new Promise(done => {
+    const dlg = el('dialog', 'sheet'); dlg.id = 'inviteGate'; dlg.setAttribute('aria-labelledby', 'igTitle'); document.body.append(dlg);
+    const f = el('form'); f.method = 'dialog';
+    const h = el('h2', null, 'Gavote kvietimą'); h.id = 'igTitle';
+    const steps = el('ol', 'sg-steps');
+    for (const t of ['Nukopijuokite nuorodą', 'Atidarykite „Akcijos“ programėlę pradžios ekrane', 'Spauskite „Įklijuoti kvietimo nuorodą“'])
+      steps.append(el('li', null, t));
+    const cp = el('button', 'primary', 'Kopijuoti nuorodą'); cp.type = 'button';
+    cp.onclick = async () => {
+      try { await navigator.clipboard.writeText(INVITE_IN.url); cp.textContent = '✓ Nukopijuota – atidarykite programėlę'; cp.classList.add('ok'); }
+      catch { cp.textContent = 'Nepavyko – nukopijuokite nuorodą iš žinutės'; }
+    };
+    const here = el('button', 'secondary', 'Neturiu programėlės – tęsti čia'); here.type = 'button';
+    here.onclick = () => { dlg.close(); dlg.remove(); done(); };
+    f.append(el('div', 'grab'), h, el('p', 'tb-sub', 'Turite „Akcijos“ programėlę pradžios ekrane? Ši naršyklė su ja atminties nesidalija:'),
+      steps, cp, here);
+    dlg.addEventListener('cancel', e => e.preventDefault());
+    dlg.replaceChildren(f);
+    dlg.showModal();
   });
 }
 
@@ -2101,6 +2211,7 @@ function openToBasket(r, stores) {
    (SHA-256 iš itemId), ranka įrašytoms – tekstas: #s=<kodai be skirtukų>&t=duona~pienas.
    Gavėjas kodus atpažįsta, kol prekė yra jo data.json (t. y. tą savaitę); pasibaigusios praleidžiamos. */
 const SHARE_LEN = 6;
+const SHARE_MAX = 100, SHARE_TEXT = 60;   // daugiausia prekių ir ranka įrašyto teksto simbolių nuorodoje
 async function shareCode(it) {
   const d = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(itemId(it))));
   return btoa(String.fromCharCode(...d.slice(0, 6))).replace(/\+/g, '-').replace(/\//g, '_').slice(0, SHARE_LEN);
@@ -2126,8 +2237,11 @@ function parseShare(s) {
   if (i < 0) return null;
   const p = new URLSearchParams(s.slice(i + 1));
   const codes = (p.get('s') || '').match(new RegExp(`[\\w-]{${SHARE_LEN}}`, 'g')) || [];
-  const texts = (p.get('t') || '').split('~').map(x => x.trim().replace(/\s+/g, ' ')).filter(x => watchKey(x));
-  return codes.length || texts.length ? { codes, texts } : null;
+  const texts = (p.get('t') || '').split('~').map(x => x.trim().replace(/\s+/g, ' ').slice(0, SHARE_TEXT)).filter(x => watchKey(x));
+  // ribos: svetima nuoroda negali užtvindyti sąrašo (5000 prekių) ar įrašyti ilgų tekstų
+  const total = codes.length + texts.length;
+  const c = codes.slice(0, SHARE_MAX), t = texts.slice(0, Math.max(0, SHARE_MAX - c.length));
+  return total ? { codes: c, texts: t, total } : null;
 }
 // paleidžiama įkėlus duomenis: atidaryta pasidalinto sąrašo nuoroda
 const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -2223,7 +2337,8 @@ async function openImport(sh) {
   const f = el('form'); f.method = 'dialog';
   const h = el('h2', null, 'Gautas pirkinių sąrašas'); h.id = 'imTitle';
   const n = rows.length + missing;
-  f.append(el('div', 'grab'), h, el('div', 'tb-sub', `${n} ${prekes(n)}` + (missing ? ` · ${missing} ${plural(missing, 'akcija jau pasibaigė', 'akcijos jau pasibaigė', 'akcijų jau pasibaigė')}` : '')));
+  f.append(el('div', 'grab'), h, el('div', 'tb-sub', `${n} ${prekes(n)}` + (missing ? ` · ${missing} ${plural(missing, 'akcija jau pasibaigė', 'akcijos jau pasibaigė', 'akcijų jau pasibaigė')}` : '')
+    + (sh.total > SHARE_MAX ? ` · rodoma ${SHARE_MAX} iš ${sh.total}` : '')));
   const list = el('div', 'tb-list'), boxes = [];
   for (const r of rows) {
     const id = r.it ? itemId(r.it) : plainId('any', r.q);
