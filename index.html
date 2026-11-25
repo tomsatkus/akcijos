@@ -913,6 +913,7 @@ async function loadData() {
   const raw = await res.json();
   DATA = raw.items ? raw : await unlock(raw);   // vietinis serveris – atviras sąrašas, svetainė – užšifruotas
   for (const it of DATA.items) { it.w = it.s.split(' '); it.st = it.w.map(stem); it.e = effDisc(it); it.uv = unitValue(it); }
+  MISS_PCT = missPct(DATA.items);
   netStatus();
 }
 
@@ -1027,7 +1028,7 @@ const GEN_SAME = new Set(['pupeles', 'kapsules', 'file', 'filei', 'kumpis', 'spr
   'kepsniai', 'kepeneles', 'sirdeles', 'skilveliai', 'guliasas', 'didkepsnis', 'antrekotas', 'tartaras', 'plytele', 'plyteles', 'kasyte', 'pjausnys', 'ispjova', 'steikas', 'liezuvis', 'kruopos',
   'griezineliai', 'riekeles', 'pudra', 'pakeliai', 'dribsniai', 'uogos', 'vaisiai', 'skerdiena', 'gabaliukai', 'peteliai', 'mesa',
   'riesutai', 'branduoliai', 'saknys', 'puokste', 'rinkinys', 'rinkiniai', 'kepsneliai', 'kotletai', 'suktinis', 'stiebai',
-  'galvos', 'lapai', 'puseles', 'puselė', 'kakliukai', 'skrandukai', 'blauzdos', 'kojos', 'skerdena', 'papilves', 'juosteles', 'rozeles'].map(x => stem(normalize(x))));
+  'galvos', 'lapai', 'puseles', 'puselė', 'kakliukai', 'skrandukai', 'blauzdos', 'kojos', 'skerdena', 'papilves', 'juosteles', 'rozeles', 'dalys'].map(x => stem(normalize(x))));
 // būdvardžiai ir dalyviai („rūkyta“, „šaldytos“, „lietuviškos“) – ne daiktavardžiai, jiems taisyklė netaikoma
 const ADJ_RE = /(tas|ta|ti|tos|tu|toji|tieji|iskas|iska|iski|iskos|iniu|ine|ines)$/;
 const GEN_RE = /(os|ės|o|io|aus|ies)$/;
@@ -1040,16 +1041,18 @@ function genHead(it, j, raw, toks) {
   if (!(o.endsWith('ų') || (it.w[j] !== raw && GEN_RE.test(o)))) return false;
   for (let k = j + 1; k <= j + 3 && k < it.w.length; k++) {
     const w = it.w[k], ow = dia(w);
-    if (w === 'ir' || w === 'arba' || w === 'ar') continue;
+    // „dešros ir dešrelės“, „kiaulienos ir jautienos faršas“: po „-os / -ės“ jungtukas – greičiau vardininkų išvardijimas
+    if (w === 'ir' || w === 'arba' || w === 'ar') { if (!o.endsWith('ų')) return false; continue; }
     if (w === 'sk') return true;                                     // „obuolių ir cinamono sk.“ (skonio)
     if (GEN_STOP.has(w) || w.length < 3) return false;              // „lašišos su galvomis“ – toliau ne daiktavardis
-    if (toks.includes(it.st[k]) || GEN_SAME.has(it.st[k])) return false;
-    if (k < j + 3 && /(ine|ines|inis|iniai|oji|osios|asis|ieji|ioji)$/.test(w)) continue;   // būdvardis: „viščiukų vidinė filė“
+    if (toks.includes(it.st[k])) return false;
     if (/\d/.test(w) || ow === ow.toUpperCase()) return false;   // kiekis, prekės ženklas DIDŽIOSIOMIS – ne daiktavardis
-    if (/^\p{Lu}/u.test(ow)) continue;                              // tikrinis vardas („Jautienos Angus nugarinės kepsnys“)
-    // kitas kilmininkas („kumpio dešrelės“, „obuolių ir cinamono“) – žiūrima toliau; „-os / -ės“ nepraleidžiami:
+    // kitas kilmininkas („kumpio dešrelės“, „kavos pupelių šokolade“) – žiūrima toliau; „-os / -ės“ nepraleidžiami:
     // dažniau tai daugiskaitos vardininkas („Bulvių lazdelės“)
     if (ow.toLowerCase().endsWith('ų') || (k < j + 3 && /(o|io|aus)$/.test(ow.toLowerCase()))) continue;
+    if (GEN_SAME.has(it.st[k])) return false;
+    if (k < j + 3 && /(ine|ines|inis|iniai|oji|osios|asis|ieji|ioji)$/.test(w)) continue;   // būdvardis: „viščiukų vidinė filė“
+    if (/^\p{Lu}/u.test(ow)) continue;                              // tikrinis vardas („Jautienos Angus nugarinės kepsnys“)
     return !toks.includes(it.st[k]) && !GEN_SAME.has(it.st[k]);
   }
   return false;
@@ -1958,7 +1961,14 @@ function markWatchSeen() {
    - leidinio ženklai (MAXIMA XXX, IKI ♥♥♥, Aibės karūnos): prekė įskaičiuojama tik jei ji bus toje parduotuvėje.
    Laimi tinklas su mažiausia permoka. Dvi parduotuvės siūlomos, jei sutaupo bent REC_MIN €. */
 const savingOf = it => (it && it.o > it.p ? it.o - it.p : 0);
-const MISS_PCT = 0.3;    // prekė be akcijos – ~30 % brangiau už pigiausią akciją
+// prekė be akcijos – kiek brangiau už pigiausią akciją: šios savaitės leidinių senų ir akcijos kainų santykio mediana
+// (senoji kaina / akcijos kaina − 1; 2026-11 – ~44 %), apribota 25–60 %; jei tokių prekių mažai – 30 %
+let MISS_PCT = 0.3;
+function missPct(items) {
+  const r = items.filter(it => it.o > it.p && it.p > 0 && it.p / it.o > 0.3 && it.p / it.o < 0.97).map(it => it.o / it.p - 1).sort((a, b) => a - b);
+  if (r.length < 30) return 0.3;
+  return Math.min(0.6, Math.max(0.25, r[Math.floor((r.length - 1) / 2)]));
+}
 const MISS_EUR = 1;      // ... kai jokios kainos nežinoma (visur tik „iki −N %“)
 const FREE_KM = 2;       // iki tiek km atstumas nebaudžiamas
 const KM_EUR = 0.3;      // € už kiekvieną km toliau
@@ -2608,7 +2618,7 @@ function recCard() {
       v => { REC_MIN = v; kv.put('recMin', v); renderWatch(); }));
     const withEvent = terms.some(t => Object.values(t.per).some(x => x.it.ev));   // ir šventinio leidinio kainos
     cb.append(el('div', 'rec-note', 'Lyginama, kiek eurų permokėtumėte, palyginti su pigiausiomis akcijomis: kainos už kg / l '
-      + 'tokiam pat kiekiui; prekė be akcijos laikoma ~30 % brangesne; '
+      + `tokiam pat kiekiui; prekė be akcijos laikoma ~${Math.round(MISS_PCT * 100)} % brangesne (pagal šios savaitės leidinių senas kainas); `
       + (LOC ? `kiekvienas km toliau nei ${FREE_KM} km – +${eur(KM_EUR)} €.` : 'atstumas neįskaičiuotas (vieta nenustatyta).')
       + (withEvent ? ' Įskaičiuotos ir šventinių (pvz. Kalėdų) leidinių kainos – jos ne visada akcijos.' : '')));
     box.append(cb);
