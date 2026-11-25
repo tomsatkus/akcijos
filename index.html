@@ -1017,13 +1017,59 @@ function locative(it, w) {
   const o = it.dia.get(w);
   return !!o && LOC_RE.test(o.toLowerCase());
 }
-function primaryHit(it, tok, raw) {
+// kilmininkas prieš kitą daiktavardį: „Bulvių lazdelės“, „Svogūnų žiedai“, „Pomidorų pasta“, „Šokolado rutuliukai“ –
+// prekė yra tas daiktavardis, ieškomas žodis tik jį apibūdina. Kilmininkas – tikras žodis su „-ų“ arba kita forma nei
+// įvesta su „-os / -ės / -o / -io / -aus / -ies“ („kavos“, kai ieškoma „kava“). Iki 3 žodžių į priekį praleidžiami
+// kiti kilmininkai ir „ir / arba“ („obuolių ir cinamono sk.“). Ne šalutinė, jei tas daiktavardis – ieškomas žodis
+// arba tos pačios prekės pavidalas (GEN_SAME: „Kavos pupelės“, „Vištienos filė“, „Silkių filė“, „Grikių kruopos“)
+const GEN_SAME = new Set(['pupeles', 'kapsules', 'file', 'filei', 'kumpis', 'sprandine', 'nugarine', 'sonine', 'mente', 'sonkauliai',
+  'kulseles', 'kulsele', 'blauzdeles', 'sparneliai', 'krutineles', 'krutinele', 'ketvirciai', 'slauneles', 'farsas', 'kepsnys',
+  'kepsniai', 'kepeneles', 'sirdeles', 'skilveliai', 'guliasas', 'didkepsnis', 'antrekotas', 'tartaras', 'plytele', 'plyteles', 'kasyte', 'pjausnys', 'ispjova', 'steikas', 'liezuvis', 'kruopos',
+  'griezineliai', 'riekeles', 'pudra', 'pakeliai', 'dribsniai', 'uogos', 'vaisiai', 'skerdiena', 'gabaliukai', 'peteliai', 'mesa',
+  'riesutai', 'branduoliai', 'saknys', 'puokste', 'rinkinys', 'rinkiniai', 'kepsneliai', 'kotletai', 'suktinis', 'stiebai',
+  'galvos', 'lapai', 'puseles', 'puselė', 'kakliukai', 'skrandukai', 'blauzdos', 'kojos', 'skerdena', 'papilves', 'juosteles', 'rozeles'].map(x => stem(normalize(x))));
+// būdvardžiai ir dalyviai („rūkyta“, „šaldytos“, „lietuviškos“) – ne daiktavardžiai, jiems taisyklė netaikoma
+const ADJ_RE = /(tas|ta|ti|tos|tu|toji|tieji|iskas|iska|iski|iskos|iniu|ine|ines)$/;
+const GEN_RE = /(os|ės|o|io|aus|ies)$/;
+const GEN_STOP = new Set(['su', 'be', 'is', 'ant', 'po', 'per', 'nuo', 'prie', 'del', 'kaip', 'arba', 'skirta', 'skirtas', 'skirti']);
+function genHead(it, j, raw, toks) {
+  if (!it.dia) { it.dia = new Map(); for (const x of it.n.split(/[^\p{L}0-9]+/u)) if (x) it.dia.set(normalize(x), x); }
+  const dia = w => it.dia.get(w) || w;
+  const o0 = dia(it.w[j]), o = o0.toLowerCase();
+  if (o0 === o0.toUpperCase() || ADJ_RE.test(raw)) return false;   // prekės ženklas („VILKYŠKIŲ“), būdvardis
+  if (!(o.endsWith('ų') || (it.w[j] !== raw && GEN_RE.test(o)))) return false;
+  for (let k = j + 1; k <= j + 3 && k < it.w.length; k++) {
+    const w = it.w[k], ow = dia(w);
+    if (w === 'ir' || w === 'arba' || w === 'ar') continue;
+    if (w === 'sk') return true;                                     // „obuolių ir cinamono sk.“ (skonio)
+    if (GEN_STOP.has(w) || w.length < 3) return false;              // „lašišos su galvomis“ – toliau ne daiktavardis
+    if (toks.includes(it.st[k]) || GEN_SAME.has(it.st[k])) return false;
+    if (k < j + 3 && /(ine|ines|inis|iniai|oji|osios|asis|ieji|ioji)$/.test(w)) continue;   // būdvardis: „viščiukų vidinė filė“
+    if (/\d/.test(w) || ow === ow.toUpperCase()) return false;   // kiekis, prekės ženklas DIDŽIOSIOMIS – ne daiktavardis
+    if (/^\p{Lu}/u.test(ow)) continue;                              // tikrinis vardas („Jautienos Angus nugarinės kepsnys“)
+    // kitas kilmininkas („kumpio dešrelės“, „obuolių ir cinamono“) – žiūrima toliau; „-os / -ės“ nepraleidžiami:
+    // dažniau tai daugiskaitos vardininkas („Bulvių lazdelės“)
+    if (ow.toLowerCase().endsWith('ų') || (k < j + 3 && /(o|io|aus)$/.test(ow.toLowerCase()))) continue;
+    return !toks.includes(it.st[k]) && !GEN_SAME.has(it.st[k]);
+  }
+  return false;
+}
+// „Šokoladinis kiaušinis“ (KINDER) – ne kiaušiniai; bet „Šokoladiniai sausainiai“ – sausainiai
+const IMIT_RE = /^(sokoladin|marcipanin)/;
+const SWEETS = new Set(['saldainiai', 'sausainiai', 'ledai', 'tortas', 'pyragas', 'batonelis', 'surelis', 'kremas', 'desertas',
+  'dribsniai', 'rutuliukai', 'glaistas', 'keksas', 'vafliai', 'plutele', 'plytele', 'kokteilis', 'gerimas', 'pienas', 'sokoladas'].map(x => stem(x)));
+// vietininkas „šokolade“, „padaže“ (vienaskaita „-e“): tik kai tiksliai įvesto „-as“ žodžio forma
+const locSg = (w, raw) => /[^i]as$/.test(raw) && w === raw.slice(0, -2) + 'e';
+function primaryHit(it, tok, raw, toks = [tok]) {
   return it.w.some((w, j) => (it.st[j] === tok || w.startsWith(raw))
     && !it.w.slice(Math.max(0, j - 5), j).some(x => SIDE_BEFORE.has(x)) && !sideAfter(it, j)
     && !(instr(it, w) && (it.w.slice(Math.max(0, j - 8), j - 5).some(x => SIDE_BEFORE.has(x)) || coatedWith(it, j)))
     && !SIDE_FOR.has(it.w[j - 1]) && !SIDE_FOR.has(it.w[j - 2])   // „Sausainiai PRIE KAVOS“, „skirta kavai“
     && !(w !== raw && modAfter(it, j))
     && !(w !== raw && locative(it, w))   // „aliejuje“ ieškant „aliejus“
+    && !locSg(w, raw)                    // „Razinos šokolade“ ieškant „šokoladas“
+    && !genHead(it, j, raw, toks)        // „Bulvių lazdelės“ ieškant „bulvės“
+    && !(j > 0 && IMIT_RE.test(it.w[j - 1]) && !SWEETS.has(tok))   // „Šokoladinis kiaušinis“
     && !(w !== raw && dativeOf(raw).includes(w)   // „Sirupas kavai“, „Padažas … vištienai“ – skirta tam, ne pati prekė,
          && it.w.slice(Math.max(0, j - 3), j).some(x => x.length > 3 && /(as|is|ys|us)$/.test(x) && !/aus$/.test(x))   /* „stiliaus“ – kilmininkas */));   // bet ne „Tirpiajai kavai JACOBS“ (nuolaida kavai)
 }
@@ -1071,7 +1117,7 @@ function matchItems(items, text) {
   // pirmiau prekės, kurių žodžiai atitinka tiksliai („mėsa" ~ „mėsos"), po jų tik pagal pradžią („mėsainis")
   for (const it of items) {
     it.x = toks.every(s => it.st.includes(s)) ? 0 : 1;
-    it.rel = toks.every((s, i) => primaryHit(it, s, raw[i])) ? 0 : 1;   // pati prekė pirmiau nei „… su sūriu“
+    it.rel = toks.every((s, i) => primaryHit(it, s, raw[i], toks)) ? 0 : 1;   // pati prekė pirmiau nei „… su sūriu“
   }
   return items;
 }
@@ -1903,10 +1949,11 @@ function markWatchSeen() {
 /* ---------- Kur apsipirkti ----------
    Žinomos tik akcijų kainos (ne įprastos). Kiekvienam tinklui suskaičiuojama, kiek eurų kainuotų stebimos prekės,
    palyginti su idealiu atveju, kai kiekviena perkama ten, kur akcija pigiausia („permoka“):
-   - kaina lyginama už kg / l (arba vnt.) tokiam pat kiekiui, kokio yra pigiausia pakuotė (170 g ir 500 g sviestas
-     lyginami sąžiningai), todėl brangi prekė sveria daugiau nei pigi;
-   - prekė be akcijos tinkle – įprasta kaina nežinoma, laikoma MISS_PCT brangesne už pigiausią akciją (bet ne pigesne
-     už brangiausią žinomą akciją); akcija be kainos („iki −30 %“) – per vidurį tarp pigiausios ir „be akcijos“;
+   - kaina lyginama už kg / l (arba vnt.) tokiam pat kiekiui (170 g ir 500 g sviestas lyginami sąžiningai), todėl
+     brangi prekė sveria daugiau nei pigi;
+   - perkamas kiekis – tipinė pakuotė (tinklų pakuočių mediana);
+   - prekė be akcijos tinkle – įprasta kaina nežinoma, laikoma MISS_PCT brangesne už pigiausią akciją;
+     akcija be kainos („iki −30 %“) – per vidurį tarp pigiausios ir „be akcijos“;
    - atstumas: kiekvienas km toliau nei FREE_KM iki artimiausios tinkamos parduotuvės – KM_EUR;
    - leidinio ženklai (MAXIMA XXX, IKI ♥♥♥, Aibės karūnos): prekė įskaičiuojama tik jei ji bus toje parduotuvėje.
    Laimi tinklas su mažiausia permoka. Dvi parduotuvės siūlomos, jei sutaupo bent REC_MIN €. */
@@ -2042,9 +2089,13 @@ function recommend() {
     const vals = Object.values(per).map(x => x.v).filter(v => v != null);
     const best = vals.length ? Math.min(...vals) : null;
     const bestIt = best != null ? Object.values(per).find(x => x.v === best).it : null;
-    const ref = byUnit && bestIt && bestIt.p ? (bestIt.uv.base || bestIt.p / bestIt.uv.v) : 1;   // pigiausios pakuotės kiekis (kg / l)
-    const worst = vals.length ? Math.max(...vals) : null;
-    const miss = best != null ? Math.max(best * (1 + MISS_PCT), worst) * ref : MISS_EUR;   // € be akcijos
+    // perkamas kiekis – tipinė pakuotė: tinklų pigiausių prekių kiekių mediana (ne pigiausios prekės kiekis: „šokoladas“
+    // pigiausias už kg gali būti 1 kg maišelis, tada šokoladas sąraše svertų kaip kilogramas)
+    const qtys = byUnit ? Object.values(per).filter(x => x.v != null && x.it.p && x.it.uv).map(x => x.it.uv.base || x.it.p / x.v).sort((a, b) => a - b) : [];
+    const ref = qtys.length ? qtys[Math.floor((qtys.length - 1) / 2)] : 1;
+    // be akcijos – pigiausia akcija + MISS_PCT (ne brangiausio tinklo kaina: ten dažnai pakliūva kita prekė,
+    // pvz. „svogūnai“ -> „svogūnų žiedai alaus tešloje“, ir bauda išsipučia)
+    const miss = best != null ? best * (1 + MISS_PCT) * ref : MISS_EUR;   // € be akcijos
     terms.push({ q: w.q, per, all: byC, best, byUnit, ref, miss, unit: byUnit && bestIt ? bestIt.uv.unit : null });
   }
   if (!terms.length) return { chains: [], best: null, combo: null, smallGain: 0, soon, terms, D };
