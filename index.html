@@ -23,9 +23,9 @@
     --accent:#e0352b; --accent-soft:#fde9e7; --good:#0b7a43; --warn:#b45309; --warn-soft:#fff4e0;
     --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.06);
     --radius:18px;
-    --c-maxima:#d7262e; --c-iki:#e5007e; --c-lidl:#0b4ea2; --c-rimi:#9e1b45; --c-norfa:#e8a000; --c-silas:#2f9e44;
+    --c-maxima:#d7262e; --c-iki:#e5007e; --c-lidl:#0b4ea2; --c-rimi:#9e1b45; --c-norfa:#e8a000; --c-silas:#2f9e44; --c-aibe:#6a3fb5;
     /* tinklų pavadinimų tekstas: kontrastas ≥ 4,5:1 (taškai ir juostelės lieka ryškios --c-*) */
-    --t-maxima:#d7262e; --t-iki:#c8006d; --t-lidl:#0b4ea2; --t-rimi:#9e1b45; --t-norfa:#8a5c00; --t-silas:#1f7a33;
+    --t-maxima:#d7262e; --t-iki:#c8006d; --t-lidl:#0b4ea2; --t-rimi:#9e1b45; --t-norfa:#8a5c00; --t-silas:#1f7a33; --t-aibe:#5a32a3;
     --badge:#cf2a20; --err:#c0281e;
   }
   @media (prefers-color-scheme: dark) {
@@ -34,7 +34,7 @@
       --accent:#ff5b4f; --accent-soft:#3a1d1b; --good:#34c37a; --warn:#f0a43a; --warn-soft:#33260f;
       --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
       --c-lidl:#4d8be0; --c-rimi:#d65a7c;
-      --t-maxima:#ff6b6b; --t-iki:#ff5fae; --t-lidl:#6a9ff0; --t-rimi:#e8829b; --t-norfa:#e8a000; --t-silas:#5cc46e;
+      --t-maxima:#ff6b6b; --t-iki:#ff5fae; --t-lidl:#6a9ff0; --t-rimi:#e8829b; --t-norfa:#e8a000; --t-silas:#5cc46e; --t-aibe:#b49af0;
       --err:#ff6b6b;
     }
   }
@@ -617,7 +617,7 @@ if ((() => { try { return window.top !== window.self; } catch { return true; } }
   throw new Error('Akcijos neatidaromos rėmelyje');
 }
 const q = $('q'), statusEl = $('status'), resultsEl = $('results'), pagerEl = $('pager');
-const CHAINS = { maxima:'Maxima', iki:'IKI', lidl:'Lidl', rimi:'Rimi', norfa:'Norfa', silas:'Šilas' };
+const CHAINS = { maxima:'Maxima', iki:'IKI', lidl:'Lidl', rimi:'Rimi', norfa:'Norfa', silas:'Šilas', aibe:'Aibė' };
 
 // Būsena laikoma ir adreso juostoje (?q=...&chain=...&sort=...&page=...), kad atnaujinus puslapį ar
 // grįžus atgal matytumėte tą patį sąrašą
@@ -1138,9 +1138,12 @@ const priceTxt = it => (isFrom(it) ? 'nuo ' : '') + eur(it.p) + '\u00a0€';   /
 const UPTO_RE = /^iki\s*[-−–]\s*(\d+)\s*%$/i;
 const upTo = it => !!it.d && !!it.k && it.k.split(/[,;]\s*/).some(x => { const m = x.trim().match(UPTO_RE); return m && +m[1] === it.d; });
 const discTxt = it => (upTo(it) ? 'iki −' : '−') + it.d + '%';
-// prekė tik tam tikro formato parduotuvėse (leidinio ženklas: Maxima „XX“ / „XXX“, Rimi „H“, IKI „♥♥♥“)
+// prekė tik tam tikro formato parduotuvėse (leidinio ženklas: Maxima „XX“ / „XXX“, Rimi „H“, IKI „♥♥♥“,
+// Aibė – karūnos: „♛♛♛“ = 3 ir 4 karūnų parduotuvėse)
 const FM_NOTE = { maxima: { XX: 'tik MAXIMA XX, XXX ir XXXX', XXX: 'tik MAXIMA XXX ir XXXX' },
-                  rimi: { Hyper: 'tik „Rimi Hyper“' }, iki: { '♥♥♥': 'tik ♥♥♥ IKI parduotuvėse' } };
+                  rimi: { Hyper: 'tik „Rimi Hyper“' }, iki: { '♥♥♥': 'tik ♥♥♥ IKI parduotuvėse' },
+                  aibe: { '♛♛♛♛': 'tik 4 karūnų AIBĖ parduotuvėse', '♛♛♛': 'tik 3–4 karūnų AIBĖ parduotuvėse',
+                          '♛♛': 'tik 2–4 karūnų AIBĖ parduotuvėse' } };
 const fmNote = it => (it.fm && (FM_NOTE[it.c] || {})[it.fm]) || null;
 const condOf = it => {
   const up = upTo(it);
@@ -2054,9 +2057,9 @@ async function refreshLoc(after) {
   if (await locate()) after();
 }
 // OpenStreetMap pavadinimai nevienodi („Iki“, „RIMI Hypermarket“, „Maxima x“) – rodomi vienodai
-const CHAIN_NAME = { maxima: 'Maxima', iki: 'IKI', lidl: 'Lidl', rimi: 'Rimi', norfa: 'Norfa', silas: 'Šilas' };
+const CHAIN_NAME = { maxima: 'Maxima', iki: 'IKI', lidl: 'Lidl', rimi: 'Rimi', norfa: 'Norfa', silas: 'Šilas', aibe: 'Aibė' };
 function storeName(st) {
-  return st.n.replace(/^(maxima|iki|lidl|rimi|norfa|šilas)(?=\s|$)/i, CHAIN_NAME[st.c] || '$1')
+  return st.n.replace(/^(maxima|iki|lidl|rimi|norfa|šilas|aibė)(?=\s|$)/i, CHAIN_NAME[st.c] || '$1')
     .replace(/(\s)hypermarket(?=\s|$)/i, '$1Hyper')
     .replace(/(\s)(x{1,3}|xl|xxl|l|s)(?=\s|$)/i, (m, sp, f) => sp + f.toUpperCase())
     .replace(/(\s)(express|ekspres|cento|mini|super|hyper|bazė)(?=\s|$)/gi, (m, sp, w) => sp + w[0].toUpperCase() + w.slice(1).toLowerCase());
@@ -2073,6 +2076,7 @@ const FM_OK = {
   maxima: { XX: ['XX', 'XXX', 'XXXX'], XXX: ['XXX', 'XXXX'] },
   rimi: { Hyper: ['Hyper'] },
   iki: { '♥♥♥': ['♥♥♥'] },
+  aibe: { '♛♛♛♛': ['♛♛♛♛'], '♛♛♛': ['♛♛♛', '♛♛♛♛'], '♛♛': ['♛♛', '♛♛♛', '♛♛♛♛'] },
 };
 function storeOk(st, need) {
   if (st.c === 'rimi' && st.f === 'Express') return false;   // Rimi: „pasiūlymai negalioja „Rimi Express“ parduotuvėse“
@@ -2531,7 +2535,7 @@ function recCard() {
       box.append(cmp);
     }
   }
-  if (STORES && best) box.append(el('div', 'osm', 'Parduotuvių vietos: © OpenStreetMap bendraautoriai' + (STORES.some(s => s.c === 'iki' && s.f) ? ', iki.lt' : '') + (STORES.some(s => s.c === 'silas') ? ', silas.lt' : '') + ' · atstumas apytikslis'));
+  if (STORES && best) box.append(el('div', 'osm', 'Parduotuvių vietos: © OpenStreetMap bendraautoriai' + (STORES.some(s => s.c === 'iki' && s.f) ? ', iki.lt' : '') + (STORES.some(s => s.c === 'silas') ? ', silas.lt' : '') + (STORES.some(s => s.c === 'aibe') ? ', aibe.lt' : '') + ' · atstumas apytikslis'));
   return box;
 }
 

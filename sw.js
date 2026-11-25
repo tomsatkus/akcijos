@@ -3,7 +3,7 @@
 // Silpnas ryšys (parduotuvėje): jei tinklas neatsako per NET_WAIT, rodoma išsaugota kopija, o tinklo atsakymas,
 // kai ateina, įrašomas į talpyklą – kitą kartą atidarius bus naujausi duomenys.
 // Keliai santykiniai: svetainė gali būti ne domeno šaknyje (pvz. vardas.github.io/akcijos/).
-const CACHE = 'akcijos-v5';
+const CACHE = 'akcijos-v6';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'data.json'];
 const NET_WAIT = 2000;   // ms; puslapis ir data.json laukiami paeiliui, tad iš viso ~4 s
 
@@ -26,7 +26,9 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   if (url.pathname.includes('/api/') || url.pathname.includes('/pdf/')) return;  // vietinis serveris
-  const net = fetch(e.request).then(res => {
+  // cache: 'no-cache' – visada paklausti serverio (GitHub Pages leidžia naršyklei 10 min. naudoti savo kopiją, todėl
+  // ką tik paskelbta versija kitaip pasirodytų tik po 10 min.); nepasikeitęs failas grįžta trumpu 304 atsakymu
+  const net = fetch(url.href, { cache: 'no-cache', credentials: 'same-origin' }).then(res => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
     return res;
   });
