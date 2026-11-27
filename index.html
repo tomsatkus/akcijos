@@ -2226,6 +2226,34 @@ function locate() {
     navigator.geolocation.getCurrentPosition(done, e => fail(e, true), { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
   });
 }
+/* „Čia, kur esu dabar“: tiksli vieta (GPS), ne talpykloje laikoma ar pagal Wi-Fi / tinklą (ta gali būti už kelių km).
+   Kelias sekundes laukiama tikslesnių matavimų ir paimamas tiksliausias; ±50 m – užtenka, baigiama iškart. */
+function locatePrecise() {
+  return new Promise(ok => {
+    if (!window.isSecureContext) { LOCERR = 'Vietą galima nustatyti tik atidarius svetainę per https:// adresą.'; return ok(null); }
+    if (!navigator.geolocation) { LOCERR = 'Šis telefonas vietos nustatyti neleidžia.'; return ok(null); }
+    let best = null, wid = null, timer = null, over = false;
+    const finish = () => {
+      if (over) return; over = true;
+      if (wid != null) navigator.geolocation.clearWatch(wid);
+      clearTimeout(timer);
+      if (best) LOCERR = '';
+      ok(best);
+    };
+    wid = navigator.geolocation.watchPosition(p => {
+      const c = { lat: p.coords.latitude, lon: p.coords.longitude, acc: Math.round(p.coords.accuracy || 0) };
+      if (!best || c.acc < best.acc) best = c;
+      if (c.acc <= 50) finish();
+    }, e => {
+      if (best) return finish();
+      LOCERR = e.code === 1 ? 'Vietos naudoti neleista. Leiskite tai naršyklės nustatymuose arba susiraskite parduotuvę ar miestą žemiau.'
+             : 'Vietos nustatyti nepavyko – įjunkite vietos nustatymą (GPS) telefone arba susiraskite parduotuvę ar miestą žemiau.';
+      finish();
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    timer = setTimeout(finish, 12000);
+  });
+}
+const accTxt = a => a >= 1000 ? `±${(a / 1000).toFixed(a < 10000 ? 1 : 0).replace('.', ',')} km` : `±${Math.max(10, Math.round(a / 10) * 10)} m`;
 // atsarginis būdas be vietos nustatymo: miestas iš parduotuvių adresų, vieta – jo parduotuvių vidurkis
 function cities() {
   const m = new Map();
@@ -2247,7 +2275,7 @@ function nearLabel(p) {
   for (const s of STORES || []) { const d = distKm(p, s); if (!best || d < best.d) best = { s, d }; }
   if (!best) return { label: 'Dabartinė vieta', sub: '' };
   const city = cityOf(best.s.a);
-  if (best.d <= 1.5) return { label: `prie ${storeName(best.s)}${street(best.s.a) ? ', ' + street(best.s.a) : ''}`, sub: city };
+  if (best.d <= 1.5 && !(p.acc > 300)) return { label: `prie ${storeName(best.s)}${street(best.s.a) ? ', ' + street(best.s.a) : ''}`, sub: city };
   return { label: city ? `${city} (pagal GPS)` : 'Dabartinė vieta', sub: '' };
 }
 const placeLabel = p => p.label || (p.city ? p.city : 'Dabartinė vieta');
@@ -2288,7 +2316,7 @@ const PL_ICON = {
   city: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M10 21v-5h4v5"/></svg>',
   search: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
 };
-const srcTxt = p => p.src === 'gps' ? 'nustatyta pagal GPS' : p.src === 'city' ? 'miesto centras' : p.sub || '';
+const srcTxt = p => p.src === 'gps' ? 'nustatyta pagal GPS' + (p.acc ? ' · ' + accTxt(p.acc) : '') : p.src === 'city' ? 'miesto centras' : p.sub || '';
 /* „Kur pirksite?“: GPS arba parduotuvė / miestas iš paieškos; paskutinės vietos – vienu paspaudimu */
 function placeSheet(rerender) {
   let dlg = $('placeDlg');
@@ -2298,12 +2326,19 @@ function placeSheet(rerender) {
   const h = el('h2', null, 'Kur pirksite?'); h.id = 'plTitle';
   const done = p => { setPlace(p); dlg.close(); rerender(); };
   const err = el('p', 'pl-err'); err.hidden = true; err.setAttribute('aria-live', 'polite');
+  const warn = el('div'); warn.setAttribute('aria-live', 'polite');
   const gps = placeBtn('Čia, kur esu dabar', 'Pagal telefono vietą (GPS)', PL_ICON.gps, async () => {
-    gps.disabled = true; gps.querySelector('small').textContent = 'Nustatoma vieta…'; err.hidden = true;
-    const p = await locate();
+    gps.disabled = true; gps.querySelector('small').textContent = 'Ieškoma tikslios vietos… (iki 12 s)'; err.hidden = true; warn.replaceChildren();
+    const p = await locatePrecise();
     gps.disabled = false; gps.querySelector('small').textContent = 'Pagal telefono vietą (GPS)';
     if (!p) { err.textContent = LOCERR; err.hidden = false; return; }
-    done({ lat: p.lat, lon: p.lon, src: 'gps', ...nearLabel(p) });
+    const place = { lat: p.lat, lon: p.lon, acc: p.acc, src: 'gps', ...nearLabel(p) };
+    if (p.acc > 1000) {   // telefonas GPS nemato (pvz. kompiuteris, patalpa) – vieta tik apytikslė: pasakoma, o ne nustatoma tyliai
+      const use = el('button', 'chip sm', 'Vis tiek naudoti'); use.type = 'button'; use.onclick = () => done(place);
+      warn.append(el('p', 'pl-err', `Vieta nustatyta netiksliai (${accTxt(p.acc)}). Įjunkite tikslią vietą (GPS) telefone ir bandykite dar kartą arba susiraskite parduotuvę žemiau.`), use);
+      return;
+    }
+    done(place);
   }, 'near pl-gps');
   gps.id = 'plGps';
   const lbl = el('label', 'field-label', 'Parduotuvė, gatvė ar miestas'); lbl.htmlFor = 'plQ';
@@ -2322,7 +2357,7 @@ function placeSheet(rerender) {
       for (const p of rec) {
         const cur = LOC && distKm(p, LOC) <= 0.2;
         list.append(placeBtn(placeLabel(p), [srcTxt(p), cur ? 'dabar pasirinkta' : ''].filter(Boolean).join(' · '), PL_ICON.recent,
-          () => done({ lat: p.lat, lon: p.lon, src: p.src, label: p.label, sub: p.sub, city: p.city })));
+          () => done({ lat: p.lat, lon: p.lon, acc: p.acc, src: p.src, label: p.label, sub: p.sub, city: p.city })));
       }
       out.append(el('div', 'field-label', 'Neseniai naudotos'), list);
       return;
@@ -2353,7 +2388,7 @@ function placeSheet(rerender) {
   q.onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };   // ne forma: Enter langą uždarytų
   const no = el('button', 'secondary', 'Atšaukti'); no.type = 'button'; no.onclick = () => dlg.close();
   f.append(el('div', 'grab'), h, el('p', 'tb-sub', 'Rekomendacijos ir atstumai bus skaičiuojami nuo šios vietos.'),
-    gps, err, el('div', 'pl-or', 'arba'), lbl, sb, out, no);
+    gps, err, warn, el('div', 'pl-or', 'arba'), lbl, sb, out, no);
   dlg.replaceChildren(f);
   paint();
   dlg.showModal();
@@ -2390,7 +2425,11 @@ function farBanner(rerender) {
   t.append(el('b', null, `Esate ~${km} km nuo apsipirkimo vietos.`), ' Pirksite čia?',
     el('small', null, 'Kol neatsakėte, rekomendacija lieka pagal nustatytą vietą.'));
   const yes = el('button', 'chip', 'Taip, pirksiu čia'); yes.type = 'button'; yes.setAttribute('aria-pressed', 'true');
-  yes.onclick = () => { const p = FAR.p; setPlace({ lat: p.lat, lon: p.lon, src: 'gps', ...nearLabel(p) }); rerender(); };
+  yes.onclick = async () => {
+    yes.disabled = true; yes.textContent = 'Nustatoma…';
+    const p = (await locatePrecise()) || FAR.p;
+    setPlace({ lat: p.lat, lon: p.lon, acc: p.acc, src: 'gps', ...nearLabel(p) }); rerender();
+  };
   const no = el('button', 'chip', 'Ne, palikti'); no.type = 'button';
   no.onclick = () => { kv.put('farNo', { lat: FAR.p.lat, lon: FAR.p.lon, at: Date.now() }); FAR = null; rerender(); };
   const btns = el('div', 'far-btns'); btns.append(yes, no);
