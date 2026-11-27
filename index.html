@@ -499,6 +499,7 @@
   .pl-q::-webkit-search-cancel-button { display:none; }
   .pl-q:focus { outline:none; border-color:var(--muted); box-shadow:0 0 0 4px color-mix(in srgb, var(--text) 12%, transparent); }
   .pl-err { color:var(--err); font-size:0.8438rem; margin:8px 2px 0; }
+  .pl-near { margin:10px 0; }
   .pl-none { color:var(--muted); font-size:0.8438rem; margin:4px 2px; }
   .far-btns { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; width:100%; }
   .far-btns .chip { width:100%; min-height:44px; justify-content:center; }
@@ -2285,22 +2286,44 @@ function setPlace(p) {
   LOCREC = [LOC, ...LOCREC.filter(x => distKm(x, LOC) > 0.2)].slice(0, 4);
   kv.put('locRecent', LOCREC);
 }
-// paieška lange „Kur pirksite?“: parduotuvės (pavadinimas, gatvė, miestas) ir miestai
+/* vietos.json (fetch/parduotuves.py, OpenStreetMap): prekybos centrai, gatvės, miestai – įkeliama tik atidarius
+   „Kur pirksite?“ (~1 MB, ne kiekvieną kartą atidarius programėlę). Nėra – ieškoma tik tarp parduotuvių. */
+let PLACES = null, PLACES_LOADING = null;
+function loadPlaces() {
+  if (PLACES || PLACES_LOADING) return PLACES_LOADING || Promise.resolve(PLACES);
+  PLACES_LOADING = (async () => {
+    let d = {};
+    try { const r = await fetch('vietos.json', { cache: 'no-cache' }); if (r.ok) d = await r.json(); } catch { /* be vietų */ }
+    const names = d.names || [];
+    const row = ([n, ci, lat, lon]) => { const city = names[ci] || ''; return { n, city, lat, lon, q: normalize(`${n} ${city}`) }; };
+    PLACES = { malls: (d.malls || []).map(row), streets: (d.streets || []).map(row),
+               towns: (d.cities || []).map(([n, lat, lon]) => ({ n, lat, lon, q: normalize(n) })) };
+    PLACES_LOADING = null;
+    return PLACES;
+  })();
+  return PLACES_LOADING;
+}
+// paieška lange „Kur pirksite?“: miestai, prekybos centrai, gatvės ir parduotuvės (pavadinimas, gatvė, miestas, prekybos centras)
 function placeSearch(text) {
   const toks = normalize(text).split(' ').filter(Boolean);
   if (!toks.length) return { cities: [], stores: [] };
   // kiekvienas įvestas žodis – kurio nors žodžio pradžia („ozo“ randa „Ozo g.“, bet ne „Lozoraičio“)
   const has = hay => toks.every(t => (' ' + hay).includes(' ' + t));
-  const cs = cities().filter(c => has(normalize(c.name))).slice(0, 3);
+  const cs = cities().filter(c => has(normalize(c.name)));
+  for (const t of (PLACES && PLACES.towns) || [])   // miestai be (kelių) parduotuvių – iš OpenStreetMap
+    if (has(t.q) && !cs.some(c => c.name === t.n)) cs.push({ name: t.n, n: 0, lat: t.lat, lon: t.lon });
+  const near = list => list.sort((a, b) => (LOC ? distKm(LOC, a) - distKm(LOC, b) : 0) || a.n.localeCompare(b.n, 'lt') || a.city.localeCompare(b.city, 'lt'));
+  const malls = near(((PLACES && PLACES.malls) || []).filter(m => has(m.q))).slice(0, 4);
+  const streets = near(((PLACES && PLACES.streets) || []).filter(m => has(m.q))).slice(0, 5);
   const st = [];
   for (const s of STORES || []) {
-    if (!s._q) s._q = normalize(`${storeName(s)} ${CHAINS[s.c] || ''} ${s.a || ''}`);
+    if (!s._q) s._q = normalize(`${storeName(s)} ${CHAINS[s.c] || ''} ${s.a || ''} ${s.m || ''}`);
     if (has(s._q)) st.push(s);
   }
   // arčiausiai dabartinės apsipirkimo vietos – pirmos; be jos – pagal pavadinimą
   st.sort((a, b) => (LOC ? distKm(LOC, a) - distKm(LOC, b) : 0)
     || storeName(a).localeCompare(storeName(b), 'lt') || (a.a || '').localeCompare(b.a || '', 'lt'));
-  return { cities: cs, stores: st.slice(0, 8), more: Math.max(0, st.length - 8) };
+  return { cities: cs.slice(0, 3), malls, streets, stores: st.slice(0, 8), more: Math.max(0, st.length - 8) };
 }
 function placeBtn(title, small, icon, onclick, cls = 'near') {
   const b = el('button', cls); b.type = 'button';
@@ -2314,9 +2337,12 @@ const PL_ICON = {
   gps: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22"/></svg>',
   recent: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
   city: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M10 21v-5h4v5"/></svg>',
+  mall: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16l-1 11H5L4 9Z"/><path d="M8.5 9V7a3.5 3.5 0 0 1 7 0v2"/></svg>',
+  road: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 21 10 3M17 21 14 3M12 6v2M12 11v2M12 16v2"/></svg>',
   search: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
 };
-const srcTxt = p => p.src === 'gps' ? 'nustatyta pagal GPS' + (p.acc ? ' · ' + accTxt(p.acc) : '') : p.src === 'city' ? 'miesto centras' : p.sub || '';
+const srcTxt = p => p.src === 'gps' ? 'nustatyta pagal GPS' + (p.acc ? ' · ' + accTxt(p.acc) : '')
+  : p.src === 'city' ? 'miesto centras' : p.src === 'mall' ? 'prekybos centras' : p.src === 'street' ? 'gatvė' : p.sub || '';
 /* „Kur pirksite?“: GPS arba parduotuvė / miestas iš paieškos; paskutinės vietos – vienu paspaudimu */
 function placeSheet(rerender) {
   let dlg = $('placeDlg');
@@ -2333,15 +2359,34 @@ function placeSheet(rerender) {
     gps.disabled = false; gps.querySelector('small').textContent = 'Pagal telefono vietą (GPS)';
     if (!p) { err.textContent = LOCERR; err.hidden = false; return; }
     const place = { lat: p.lat, lon: p.lon, acc: p.acc, src: 'gps', ...nearLabel(p) };
-    if (p.acc > 1000) {   // telefonas GPS nemato (pvz. kompiuteris, patalpa) – vieta tik apytikslė: pasakoma, o ne nustatoma tyliai
-      const use = el('button', 'chip sm', 'Vis tiek naudoti'); use.type = 'button'; use.onclick = () => done(place);
-      warn.append(el('p', 'pl-err', `Vieta nustatyta netiksliai (${accTxt(p.acc)}). Įjunkite tikslią vietą (GPS) telefone ir bandykite dar kartą arba susiraskite parduotuvę žemiau.`), use);
+    if (p.acc > 300) {
+      /* vieta apytikslė (iPhone be „Tiksliosios vietos“, patalpa, kompiuteris): adreso nežinoma, todėl pasiūlomos
+         artimiausios parduotuvės – pasirinkus vieną, vieta tiksli. „Vis tiek naudoti“ – tik apytikslė (miestas) */
+      /* virš ±1 km telefonas duoda tik apytikslę vietą (iPhone be „Tiksliosios vietos“, Android – „apytikslė vietovė“):
+         tai dažnai tiesiog miesto centras, todėl „artimiausios“ parduotuvės klaidintų – siūloma paieška */
+      const rough = p.acc > 1000;
+      const near = rough ? [] : (STORES || []).map(s => ({ s, d: distKm(p, s) })).sort((a, b) => a.d - b.d).slice(0, 5);
+      warn.append(el('p', 'pl-err', rough
+        ? `Telefonas duoda tik apytikslę vietą (${accTxt(p.acc)}) – dažnai tai tik miesto centras. Įjunkite tikslią vietą telefone arba įrašykite gyvenvietę, gatvę ar parduotuvę žemiau.`
+        : `Vieta nustatyta tik apytiksliai (${accTxt(p.acc)}). Pasirinkite parduotuvę, prie kurios esate.`));
+      if (rough) setTimeout(() => q.focus(), 50);
+      if (near.length) {
+        const list = el('div', 'pl-list pl-near');
+        for (const { s, d } of near) {
+          const dot = el('span', 'dot'); tint(dot, s.c);
+          list.append(placeBtn(storeName(s), [s.a, fmtKm(d)].filter(Boolean).join(' · '), dot,
+            () => done({ lat: s.lat, lon: s.lon, src: 'store', label: `prie ${storeName(s)}${street(s.a) ? ', ' + street(s.a) : ''}`, sub: cityOf(s.a) })));
+        }
+        warn.append(list);
+      }
+      const use = el('button', 'chip sm', `Vis tiek naudoti (${place.label})`); use.type = 'button'; use.id = 'plUseAnyway'; use.onclick = () => done(place);
+      warn.append(use);
       return;
     }
     done(place);
   }, 'near pl-gps');
   gps.id = 'plGps';
-  const lbl = el('label', 'field-label', 'Parduotuvė, gatvė ar miestas'); lbl.htmlFor = 'plQ';
+  const lbl = el('label', 'field-label', 'Gatvė, prekybos centras, parduotuvė ar miestas'); lbl.htmlFor = 'plQ';
   const sb = el('div', 'search'); sb.innerHTML = PL_ICON.search;
   const q = el('input', 'pl-q'); q.id = 'plQ'; q.type = 'search'; q.placeholder = 'pvz. Ozas, Kalvarijų, Kaunas';
   q.autocomplete = 'off'; q.autocapitalize = 'off'; q.spellcheck = false; q.enterKeyHint = 'search';
@@ -2363,30 +2408,43 @@ function placeSheet(rerender) {
       return;
     }
     const r = placeSearch(text);
-    if (!r.cities.length && !r.stores.length) { out.append(el('p', 'pl-none', `Pagal „${text}“ nieko nerasta. Pabandykite gatvę, miestą ar parduotuvės pavadinimą.`)); return; }
+    if (!r.cities.length && !r.malls.length && !r.streets.length && !r.stores.length) { out.append(el('p', 'pl-none', `Pagal „${text}“ nieko nerasta. Pabandykite gatvę, miestą ar parduotuvės pavadinimą.`)); return; }
     if (r.cities.length) {
       const list = el('div', 'pl-list');
       for (const c of r.cities) list.append(placeBtn(c.name, `miesto centras · ${c.n} ${plural(c.n, 'parduotuvė', 'parduotuvės', 'parduotuvių')}`, PL_ICON.city,
         () => done({ lat: c.lat, lon: c.lon, src: 'city', city: c.name, label: c.name })));
       out.append(el('div', 'field-label', 'Miestai'), list);
     }
+    const sec = (title, list) => { const h = el('div', 'field-label', title); if (out.children.length) h.style.marginTop = '14px'; out.append(h, list); };
+    if (r.malls.length) {
+      const list = el('div', 'pl-list');
+      for (const m of r.malls) list.append(placeBtn(m.n, [m.city, 'prekybos centras'].filter(Boolean).join(' · '), PL_ICON.mall,
+        () => done({ lat: m.lat, lon: m.lon, src: 'mall', label: m.city ? `${m.n}, ${m.city}` : m.n, sub: m.city })));
+      sec('Prekybos centrai', list);
+    }
+    if (r.streets.length) {
+      const list = el('div', 'pl-list');
+      for (const m of r.streets) list.append(placeBtn(m.n, m.city || '', PL_ICON.road,
+        () => done({ lat: m.lat, lon: m.lon, src: 'street', label: m.city ? `${m.n}, ${m.city}` : m.n, sub: m.city })));
+      sec('Gatvės', list);
+    }
     if (r.stores.length) {
       const list = el('div', 'pl-list');
       for (const s of r.stores) {
         const dot = el('span', 'dot'); tint(dot, s.c);
-        list.append(placeBtn(storeName(s), s.a || '', dot,
+        list.append(placeBtn(storeName(s), [s.a, s.m].filter(Boolean).join(' · '), dot,
           () => done({ lat: s.lat, lon: s.lon, src: 'store', label: `prie ${storeName(s)}${street(s.a) ? ', ' + street(s.a) : ''}`, sub: cityOf(s.a) })));
       }
-      const head = el('div', 'field-label', `Parduotuvės · ${r.stores.length + r.more}`);
-      if (r.cities.length) head.style.marginTop = '14px';
-      out.append(head, list);
+      sec(`Parduotuvės · ${r.stores.length + r.more}`, list);
       if (r.more) out.append(el('p', 'pl-none', `Ir dar ${r.more} – patikslinkite paiešką (pvz. pridėkite gatvę).`));
     }
     out.append(el('p', 'pl-none', 'Parduotuvė nurodo tik vietą: jei šalia pigiau kitame tinkle, bus rekomenduojamas jis.'));
   };
   q.oninput = paint;
+  if (!PLACES) loadPlaces().then(() => { if (q.value.trim() && dlg.open) paint(); });
   q.onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };   // ne forma: Enter langą uždarytų
   const no = el('button', 'secondary', 'Atšaukti'); no.type = 'button'; no.onclick = () => dlg.close();
+  q.placeholder = 'pvz. Akropolis, Žygio g., Kaunas';
   f.append(el('div', 'grab'), h, el('p', 'tb-sub', 'Rekomendacijos ir atstumai bus skaičiuojami nuo šios vietos.'),
     gps, err, warn, el('div', 'pl-or', 'arba'), lbl, sb, out, no);
   dlg.replaceChildren(f);
